@@ -1,0 +1,645 @@
+#pragma once
+
+#include <string>
+#include <unordered_map>
+#include <variant>
+#include <vector>
+#include <iostream>
+#include <stdexcept>
+#include <type_traits>
+#include <optional>
+#include <functional>
+
+namespace Argy {
+    /**
+     * @brief Represents a command-line argument name, supporting both short and long forms.
+     *
+     * This struct is used to specify argument names for the parser, allowing for both a short (single character)
+     * and a long (multi-character) name. Either or both can be provided.
+     */
+    struct ArgName {
+        std::string shortName; ///< Short name (e.g., "c" for -c)
+        std::string longName;  ///< Long name (e.g., "count" for --count)
+    };
+
+    /**
+     * @brief Checks if a string starts with a given prefix.
+     * @param str The string to check.
+     * @param prefix The prefix to look for.
+     * @return True if str starts with prefix, false otherwise.
+     */
+    inline bool startsWith(const std::string& str, const std::string& prefix)
+    {
+        return str.size() >= prefix.size() && str.compare(0, prefix.size(), prefix) == 0;
+    }
+
+    /**
+     * @class Parser
+     * @brief Command-line argument parser inspired by Python's argparse.
+     *
+     * This class provides a flexible and type-safe way to define, parse, and validate command-line arguments.
+     * It supports positional and optional arguments, type validation, default values, required arguments,
+     * list arguments, shorthand options, and automatic help message generation.
+     *
+     * Example usage:
+     * @code
+     *   int main(int argc, char* argv[]) {
+     *     Argy::Parser parser(argc, argv);
+     *     parser.addInt("--count", "Number of items", 10);
+     *     parser.addString("filename", "Input file");
+     *     parser.parse();
+     *     int count = parser.getInt("count");
+     *     std::string file = parser.getString("filename");
+     *   }
+     * @endcode
+     */
+    class Parser {
+    public:
+        /**
+         * @brief Constructs a Parser and sets the default help handler.
+         * @param argc Argument count from main().
+         * @param argv Argument vector from main().
+         *
+         * The default help handler prints help and exits. You can override it with setHelpHandler().
+         */
+        Parser(int argc, char* argv[]) : m_argc(argc), m_argv(argv) {
+            m_helpHandler = [this](std::string name) {
+                printHelp(name);
+                std::exit(0);
+            };
+        }
+
+        /**
+         * @brief Set a custom help handler invoked on --help or -h.
+         * @param handler Function to call when help is requested. Receives the program name.
+         *
+         * The default handler prints help and exits. Override this if you want to return or throw instead.
+         */
+        void setHelpHandler(std::function<void(std::string)> handler) {
+            m_helpHandler = std::move(handler);
+        }
+
+        /**
+         * @brief Add an argument to the parser (positional or optional).
+         * @tparam T Argument type (int, float, bool, string, or vector thereof).
+         * @param name Argument name (e.g. "--count" or "filename").
+         * @param help Help text for usage.
+         * @param defaultValue Optional default value; if omitted, argument is required.
+         * @throws std::runtime_error if attempting to override reserved names --help or -h.
+         *
+         * If the name starts with dashes, it is treated as an optional argument; otherwise, it is positional.
+         */
+        template<typename T>
+        void add(const std::string& name,
+            const std::string& help = "",
+            std::optional<T> defaultValue = std::nullopt
+        ) {
+            std::string cleanName = name;
+            bool isPositional = true;
+
+            // Strip leading dashes for optionals
+            if (startsWith(cleanName, "--")) {
+                cleanName = cleanName.substr(2);
+                isPositional = false;
+            }
+            else if (startsWith(cleanName, "-")) {
+                cleanName = cleanName.substr(1);
+                isPositional = false;
+            }
+
+            // Prevent overriding help flags
+            if (cleanName == "help" || cleanName == "h") {
+                throw std::runtime_error("Cannot redefine built-in --help/-h argument");
+            }
+
+            ArgType type = deduceArgType<T>();
+            Value val = defaultValue ? Value(*defaultValue) : Value{};
+            bool isRequired = !defaultValue.has_value();
+
+            m_arguments[cleanName] = { cleanName, help, isRequired, type, val, isPositional };
+            if (isPositional)
+                m_positionalOrder.push_back(cleanName);
+        }
+
+        /**
+         * @brief Add an argument with both a short and a full name.
+         * @tparam T Argument type.
+         * @param shortName Single char shorthand (e.g. 'c' for -c).
+         * @param fullName Full name with leading dashes (e.g. "--count").
+         * @param help Help text.
+         * @param defaultValue Optional default value.
+         * @throws std::runtime_error on redefining --help/-h or duplicate short name.
+         */
+        template<typename T>
+        void add(
+            char shortName,
+            const std::string& fullName,
+            const std::string& help = "",
+            std::optional<T> defaultValue = std::nullopt
+        ) {
+            if (shortName == 'h' && (fullName == "--help" || fullName == "-h")) {
+                throw std::runtime_error("Cannot redefine built-in --help/-h argument");
+            }
+            std::string cleanFullName = fullName;
+            bool isPositional = true;
+
+            if (startsWith(cleanFullName, "--")) {
+                cleanFullName = cleanFullName.substr(2);
+                isPositional = false;
+            }
+            else if (startsWith(cleanFullName, "-")) {
+                cleanFullName = cleanFullName.substr(1);
+                isPositional = false;
+            }
+
+            std::string shortKey(1, shortName);
+            if (m_shortToLong.count(shortKey)) {
+                throw std::runtime_error("Short name already registered: -" + shortKey);
+            }
+
+            ArgType type = deduceArgType<T>();
+            Value val = defaultValue ? Value(*defaultValue) : Value{};
+            bool isRequired = !defaultValue.has_value();
+
+            m_arguments[cleanFullName] = { cleanFullName, help, isRequired, type, val, isPositional };
+            m_shortToLong[shortKey] = cleanFullName;
+
+            if (isPositional)
+                m_positionalOrder.push_back(cleanFullName);
+        }
+
+        // Shorter method names for adding arguments
+        /**
+         * @name Convenience methods for adding arguments of specific types
+         * @{
+         */
+        Parser& addString(const std::string& name, const std::string& help = "", std::optional<std::string> defaultValue = std::nullopt) { add<std::string>(name, help, defaultValue); return *this; }
+        Parser& addString(char shortName, const std::string& fullName, const std::string& help = "", std::optional<std::string> defaultValue = std::nullopt) { add<std::string>(shortName, fullName, help, defaultValue); return *this; }
+
+        Parser& addInt(const std::string& name, const std::string& help = "", std::optional<int> defaultValue = std::nullopt) { add<int>(name, help, defaultValue); return *this; }
+        Parser& addInt(char shortName, const std::string& fullName, const std::string& help = "", std::optional<int> defaultValue = std::nullopt) { add<int>(shortName, fullName, help, defaultValue); return *this; }
+
+        Parser& addFloat(const std::string& name, const std::string& help = "", std::optional<float> defaultValue = std::nullopt) { add<float>(name, help, defaultValue); return *this; }
+        Parser& addFloat(char shortName, const std::string& fullName, const std::string& help = "", std::optional<float> defaultValue = std::nullopt) { add<float>(shortName, fullName, help, defaultValue); return *this; }
+
+        Parser& addBool(const std::string& name, const std::string& help = "", std::optional<bool> defaultValue = std::nullopt) { add<bool>(name, help, defaultValue); return *this; }
+        Parser& addBool(char shortName, const std::string& fullName, const std::string& help = "", std::optional<bool> defaultValue = std::nullopt) { add<bool>(shortName, fullName, help, defaultValue); return *this; }
+
+        Parser& addStrings(const std::string& name, const std::string& help = "", std::optional<std::vector<std::string>> defaultValue = std::nullopt) { add<std::vector<std::string>>(name, help, defaultValue); return *this; }
+        Parser& addStrings(char shortName, const std::string& fullName, const std::string& help = "", std::optional<std::vector<std::string>> defaultValue = std::nullopt) { add<std::vector<std::string>>(shortName, fullName, help, defaultValue); return *this; }
+
+        Parser& addInts(const std::string& name, const std::string& help = "", std::optional<std::vector<int>> defaultValue = std::nullopt) { add<std::vector<int>>(name, help, defaultValue); return *this; }
+        Parser& addInts(char shortName, const std::string& fullName, const std::string& help = "", std::optional<std::vector<int>> defaultValue = std::nullopt) { add<std::vector<int>>(shortName, fullName, help, defaultValue); return *this; }
+
+        Parser& addFloats(const std::string& name, const std::string& help = "", std::optional<std::vector<float>> defaultValue = std::nullopt) { add<std::vector<float>>(name, help, defaultValue); return *this; }
+        Parser& addFloats(char shortName, const std::string& fullName, const std::string& help = "", std::optional<std::vector<float>> defaultValue = std::nullopt) { add<std::vector<float>>(shortName, fullName, help, defaultValue); return *this; }
+
+        Parser& addBools(const std::string& name, const std::string& help = "", std::optional<std::vector<bool>> defaultValue = std::nullopt) { add<std::vector<bool>>(name, help, defaultValue); return *this; }
+        Parser& addBools(char shortName, const std::string& fullName, const std::string& help = "", std::optional<std::vector<bool>> defaultValue = std::nullopt) { add<std::vector<bool>>(shortName, fullName, help, defaultValue); return *this; }
+        /** @} */
+
+        // Overloads for ArgName
+        /**
+         * @name Overloads for ArgName
+         * @{
+         */
+        Parser& addString(const ArgName& argName, const std::string& help = "", std::optional<std::string> defaultValue = std::nullopt) { add<std::string>(argName, help, defaultValue); return *this; }
+        Parser& addInt(const ArgName& argName, const std::string& help = "", std::optional<int> defaultValue = std::nullopt) { add<int>(argName, help, defaultValue); return *this; }
+        Parser& addFloat(const ArgName& argName, const std::string& help = "", std::optional<float> defaultValue = std::nullopt) { add<float>(argName, help, defaultValue); return *this; }
+        Parser& addBool(const ArgName& argName, const std::string& help = "", std::optional<bool> defaultValue = std::nullopt) { add<bool>(argName, help, defaultValue); return *this; }
+        Parser& addStrings(const ArgName& argName, const std::string& help = "", std::optional<std::vector<std::string>> defaultValue = std::nullopt) { add<std::vector<std::string>>(argName, help, defaultValue); return *this; }
+        Parser& addInts(const ArgName& argName, const std::string& help = "", std::optional<std::vector<int>> defaultValue = std::nullopt) { add<std::vector<int>>(argName, help, defaultValue); return *this; }
+        Parser& addFloats(const ArgName& argName, const std::string& help = "", std::optional<std::vector<float>> defaultValue = std::nullopt) { add<std::vector<float>>(argName, help, defaultValue); return *this; }
+        Parser& addBools(const ArgName& argName, const std::string& help = "", std::optional<std::vector<bool>> defaultValue = std::nullopt) { add<std::vector<bool>>(argName, help, defaultValue); return *this; }
+        /** @} */
+
+        /**
+         * @brief Parse command-line arguments using stored argc/argv.
+         *
+         * This method processes the command-line arguments, validates types, checks for required arguments,
+         * and sets default values where appropriate. Throws on unknown or missing required arguments.
+         *
+         * @throws std::runtime_error on unknown or missing required arguments.
+         */
+        void parse() {
+
+            int argc = m_argc;
+            char** argv = m_argv;
+            // Auto-handle help flags
+            for (int i = 1; i < argc; ++i) {
+                std::string arg = argv[i];
+                if (arg == "--help" || arg == "-h") {
+                    m_helpHandler(argv[0]);
+                }
+            }
+
+            std::string currentKey;
+            size_t positionalIndex = 0;
+
+            // Parse loop
+            for (int i = 1; i < argc; ++i) {
+                std::string token = argv[i];
+
+                if (startsWith(token, "--")) {
+                    currentKey = token.substr(2);
+                    ensureKnown(currentKey);
+                    if (isListType(m_arguments[currentKey].type)) {
+                        m_parsedLists[currentKey] = {};
+                        continue;
+                    }
+                    if (m_arguments[currentKey].type == ArgType::Bool) {
+                        m_parsed[currentKey] = "true";
+                        currentKey.clear();
+                    }
+                }
+                else if (startsWith(token, "-") && token.size() > 1 && m_shortToLong.count(token.substr(1))) {
+                    // Multi-character short option
+                    std::string shortKey = token.substr(1);
+                    auto it = m_shortToLong.find(shortKey);
+                    if (it == m_shortToLong.end()) {
+                        throw std::runtime_error("Unknown short argument: -" + shortKey);
+                    }
+                    currentKey = it->second;
+                    ensureKnown(currentKey);
+                    if (m_arguments[currentKey].type == ArgType::Bool) {
+                        m_parsed[currentKey] = "true";
+                        currentKey.clear();
+                    }
+                }
+                else if (!currentKey.empty()) {
+                    if (isListType(m_arguments[currentKey].type)) {
+                        m_parsedLists[currentKey].push_back(token);
+                    }
+                    else {
+                        m_parsed[currentKey] = token;
+                        currentKey.clear();
+                    }
+                }
+                else {
+                    // Positional argument
+                    if (positionalIndex >= m_positionalOrder.size())
+                        throw std::runtime_error("Unexpected positional argument: " + token);
+                    std::string name = m_positionalOrder[positionalIndex++];
+                    m_parsed[name] = token;
+                }
+            }
+
+            // Validate required and set defaults
+            for (const auto& [key, argument] : m_arguments) {
+                if (!isListType(argument.type) && !m_parsed.count(key)) {
+                    if (argument.required)
+                        throw std::runtime_error("Missing required argument: " + argument.name);
+                    m_parsed[key] = toString(argument.defaultValue);
+                }
+                else if (isListType(argument.type) && !m_parsedLists.count(key)) {
+                    if (argument.required) {
+                        throw std::runtime_error("Missing required list argument: " + argument.name);
+                    }
+                    // Set default for list arguments if provided
+                    if (!std::holds_alternative<std::monostate>(argument.defaultValue)) {
+                        switch (argument.type) {
+                            case ArgType::StringList:
+                                m_parsedLists[key] = std::get<std::vector<std::string>>(argument.defaultValue);
+                                break;
+                            case ArgType::IntList: {
+                                const auto& vec = std::get<std::vector<int>>(argument.defaultValue);
+                                std::vector<std::string> strVec;
+                                for (const auto& v : vec) strVec.push_back(std::to_string(v));
+                                m_parsedLists[key] = std::move(strVec);
+                                break;
+                            }
+                            case ArgType::FloatList: {
+                                const auto& vec = std::get<std::vector<float>>(argument.defaultValue);
+                                std::vector<std::string> strVec;
+                                for (const auto& v : vec) strVec.push_back(std::to_string(v));
+                                m_parsedLists[key] = std::move(strVec);
+                                break;
+                            }
+                            case ArgType::BoolList: {
+                                const auto& vec = std::get<std::vector<bool>>(argument.defaultValue);
+                                std::vector<std::string> strVec;
+                                for (const auto& v : vec) strVec.push_back(v ? "true" : "false");
+                                m_parsedLists[key] = std::move(strVec);
+                                break;
+                            }
+                            default:
+                                break;
+                        }
+                    }
+                }
+                else {
+                    if (!isListType(argument.type))
+                        validateType(m_parsed[key], argument.type);
+                }
+            }
+        }
+
+        /**
+         * @brief Get the parsed argument value by name.
+         * @tparam T Expected argument type.
+         * @param name Argument name.
+         * @return Parsed argument value of type T.
+         * @throws std::runtime_error if the argument is not found or type conversion fails.
+         */
+        template<typename T>
+        T get(const std::string& name) const {
+            if constexpr (is_vector<T>::value) {
+                auto it = m_parsedLists.find(name);
+                if (it == m_parsedLists.end())
+                    throw std::runtime_error("Argument list not found: " + name);
+                return fromStringVector<typename T::value_type>(it->second);
+            }
+            else {
+                auto it = m_parsed.find(name);
+                if (it == m_parsed.end())
+                    throw std::runtime_error("Argument not found: " + name);
+                return fromString<T>(it->second);
+            }
+        }
+
+        /**
+         * @brief Check if an argument was provided on the command line.
+         * @param name Argument name.
+         * @return True if the argument is present, false otherwise.
+         */
+        bool has(const std::string& name) const {
+            return m_parsed.count(name) || m_parsedLists.count(name);
+        }
+
+        /**
+         * @name Convenience getters for specific types
+         * @{
+         */
+        int getInt(const std::string& name) const { return get<int>(name); }
+        float getFloat(const std::string& name) const { return get<float>(name); }
+        bool getBool(const std::string& name) const { return get<bool>(name); }
+        std::string getString(const std::string& name) const { return get<std::string>(name); }
+
+        std::vector<int> getInts(const std::string& name) const { return get<std::vector<int>>(name); }
+        std::vector<float> getFloats(const std::string& name) const { return get<std::vector<float>>(name); }
+        std::vector<bool> getBools(const std::string& name) const { return get<std::vector<bool>>(name); }
+        std::vector<std::string> getStrings(const std::string& name) const { return get<std::vector<std::string>>(name); }
+        /** @} */
+
+        /**
+         * @brief Print help message to stdout.
+         * @param programName The program's executable name (usually argv[0]).
+         *
+         * This prints a usage summary and all registered arguments, including their help text and default values.
+         */
+        void printHelp(const std::string& programName) const {
+
+            std::cout << "Usage: " << programName;
+            for (const auto& positional : m_positionalOrder)
+                std::cout << " <" << positional << ">";
+            std::cout << " [options]\n";
+
+            for (const auto& [key, argument] : m_arguments) {
+                std::cout << "  ";
+                // Find if this argument has a short name
+                std::string shortName;
+                for (const auto& [s, l] : m_shortToLong) {
+                    if (l == key) {
+                        shortName = s;
+                        break;
+                    }
+                }
+                if (!shortName.empty())
+                    std::cout << "-" << shortName << ", ";
+                else
+                    std::cout << "    ";
+
+                if (argument.positional)
+                    std::cout << argument.name;
+                else
+                    std::cout << "--" << argument.name << (argument.type != ArgType::Bool ? " <value>" : "");
+
+                if (!argument.help.empty())
+                    std::cout << "\t" << argument.help;
+
+                if (!std::holds_alternative<std::monostate>(argument.defaultValue))
+                    std::cout << " (default: " << toString(argument.defaultValue) << ")";
+
+                std::cout << "\n";
+            }
+
+            std::cout << "  --help, -h\tShow this help message\n";
+        }
+
+        /**
+         * @brief Add an argument to the parser (positional or optional) using ArgName.
+         * @tparam T Argument type (int, float, bool, string, or vector thereof).
+         * @param argName ArgName object with short and/or long name.
+         * @param help Help text for usage.
+         * @param defaultValue Optional default value; if omitted, argument is required.
+         * @throws std::runtime_error if attempting to override reserved names --help or -h.
+         */
+        template<typename T>
+        void add(const ArgName& argName,
+            const std::string& help = "",
+            std::optional<T> defaultValue = std::nullopt) {
+
+            if (!argName.shortName.empty()) {
+                std::string shortKey = argName.shortName;
+                if (startsWith(shortKey, "-")) shortKey = shortKey.substr(1);
+                std::string longKey = argName.longName;
+                if (startsWith(longKey, "--")) longKey = longKey.substr(2);
+                // Register both short and long names
+                if (m_shortToLong.count(shortKey)) {
+                    throw std::runtime_error("Short name already registered: -" + shortKey);
+                }
+                add<T>("--" + longKey, help, defaultValue);
+                m_shortToLong[shortKey] = longKey;
+            } else {
+                add<T>(argName.longName, help, defaultValue);
+            }
+        }
+
+        /**
+         * @brief Add an argument using an initializer list of names.
+         * @tparam T Argument type.
+         * @param names List of argument names (one or two: short and/or long).
+         * @param help Help text.
+         * @param defaultValue Optional default value.
+         * @throws std::invalid_argument if the number of names is not one or two.
+         */
+        template<typename T>
+        void add(std::initializer_list<const char*> names,
+                 const std::string& help = "",
+                 std::optional<T> defaultValue = std::nullopt) {
+            auto it = names.begin();
+            std::string shortName, longName;
+            if (names.size() == 2) {
+                shortName = *it;
+                ++it;
+                longName = *it;
+            } else if (names.size() == 1) {
+                longName = *it;
+            } else {
+                throw std::invalid_argument("Must provide one or two argument names");
+            }
+            add<T>(ArgName{shortName, longName}, help, defaultValue);
+        }
+    private:  
+        /**
+         * @brief Variant to hold any supported argument value type.
+         *
+         * This variant is used for storing argument values of different types, including lists.
+         */
+        using Value = std::variant<
+            std::monostate,      ///< No value
+            std::string,         ///< String value
+            int,                 ///< Integer value
+            float,               ///< Floating-point value
+            bool,                ///< Boolean value
+            std::vector<std::string>, ///< List of strings
+            std::vector<int>,         ///< List of integers
+            std::vector<float>,       ///< List of floats
+            std::vector<bool>>;       ///< List of booleans
+
+        /**
+         * @enum ArgType
+         * @brief Supported argument types for validation and parsing.
+         */
+        enum class ArgType {
+            String,     ///< Single string value
+            Int,        ///< Single integer value
+            Float,      ///< Single float value
+            Bool,       ///< Single boolean value
+            StringList, ///< List of strings
+            IntList,    ///< List of integers
+            FloatList,  ///< List of floats
+            BoolList    ///< List of booleans
+        };
+
+        /**
+         * @struct Argument
+         * @brief Represents one command-line argument and its metadata.
+         */
+        struct Argument {
+            std::string name;       ///< Argument name without dashes.
+            std::string help;       ///< Help/description string.
+            bool required{ true };  ///< True if argument must be provided by the user.
+            ArgType type{ ArgType::String }; ///< Argument type.
+            Value defaultValue;     ///< Default value if any.
+            bool positional{ false }; ///< True if this is a positional argument.
+        };
+
+        std::unordered_map<std::string, Argument> m_arguments; ///< Map of all arguments.
+        std::unordered_map<std::string, std::string> m_parsed; ///< Parsed single-value arguments.
+        std::unordered_map<std::string, std::vector<std::string>> m_parsedLists; ///< Parsed list arguments.
+        std::vector<std::string> m_positionalOrder; ///< Order of positional arguments.
+        std::unordered_map<std::string, std::string> m_shortToLong; ///< Map short names (like "c") to full names (like "count").
+        std::function<void(std::string)> m_helpHandler; ///< Function to handle help requests.
+        int m_argc; ///< Argument count from main().
+        char** m_argv; ///< Argument vector from main().
+
+        /**
+         * @brief Throws if unknown or positional argument used as option.
+         * @param key Argument key to check.
+         * @throws std::runtime_error if the argument is unknown or positional.
+         */
+        void ensureKnown(const std::string& key) const {
+            if (!m_arguments.count(key) || m_arguments.at(key).positional)
+                throw std::runtime_error("Unknown argument: --" + key);
+        }
+
+        /**
+         * @brief Converts Value variant to string for defaults and printing.
+         * @param value The Value to convert.
+         * @return String representation of the value.
+         */
+        static std::string toString(const Value& value) {
+            if (std::holds_alternative<std::string>(value)) return std::get<std::string>(value);
+            if (std::holds_alternative<int>(value)) return std::to_string(std::get<int>(value));
+            if (std::holds_alternative<float>(value)) return std::to_string(std::get<float>(value));
+            if (std::holds_alternative<bool>(value)) return std::get<bool>(value) ? "true" : "false";
+            return "";
+        }
+
+        /**
+         * @brief Validate a string against the expected argument type.
+         * @param val The string value to check.
+         * @param type The expected argument type.
+         * @throws std::invalid_argument if validation fails.
+         */
+        static void validateType(const std::string& val, ArgType type) {
+            switch (type) {
+            case ArgType::Int: (void)std::stoi(val); break;
+            case ArgType::Float: (void)std::stof(val); break;
+            case ArgType::Bool:
+                if (val != "true" && val != "false" && val != "1" && val != "0")
+                    throw std::invalid_argument("Expected boolean value");
+                break;
+            default:
+                break;
+            }
+        }
+
+        /**
+         * @brief Convert string to value of type T.
+         * @tparam T Target type.
+         * @param value String value to convert.
+         * @return Value of type T.
+         */
+        template<typename T>
+        static T fromString(const std::string& value);
+
+        template<> static int fromString<int>(const std::string& value) { return std::stoi(value); }
+        template<> static float fromString<float>(const std::string& value) { return std::stof(value); }
+        template<> static bool fromString<bool>(const std::string& value) { return value == "true" || value == "1"; }
+        template<> static std::string fromString<std::string>(const std::string& value) { return value; }
+
+        /**
+         * @brief Convert vector of strings to vector of type T.
+         * @tparam T Target type.
+         * @param vec Vector of strings to convert.
+         * @return Vector of type T.
+         */
+        template<typename T>
+        static std::vector<T> fromStringVector(const std::vector<std::string>& vec) {
+            std::vector<T> result;
+            for (const auto& s : vec)
+                result.push_back(fromString<T>(s));
+            return result;
+        }
+
+        /**
+         * @brief Helper type trait to detect std::vector types.
+         * @tparam T Type to check.
+         */
+        template<typename T>
+        struct is_vector : std::false_type {};
+
+        template<typename T, typename A>
+        struct is_vector<std::vector<T, A>> : std::true_type {};
+
+        /**
+         * @brief Check if an ArgType represents a list type.
+         * @param type The ArgType to check.
+         * @return True if the type is a list type, false otherwise.
+         */
+        static bool isListType(ArgType type) {
+            return type == ArgType::StringList || type == ArgType::IntList ||
+                type == ArgType::FloatList || type == ArgType::BoolList;
+        }
+
+        /**
+         * @brief Deduce ArgType enum from C++ type.
+         * @tparam T C++ type to deduce from.
+         * @return Corresponding ArgType value.
+         */
+        template<typename T>
+        static constexpr ArgType deduceArgType() {
+            if constexpr (std::is_same_v<T, int>) return ArgType::Int;
+            else if constexpr (std::is_same_v<T, float>) return ArgType::Float;
+            else if constexpr (std::is_same_v<T, bool>) return ArgType::Bool;
+            else if constexpr (std::is_same_v<T, std::string>) return ArgType::String;
+            else if constexpr (std::is_same_v<T, std::vector<int>>) return ArgType::IntList;
+            else if constexpr (std::is_same_v<T, std::vector<float>>) return ArgType::FloatList;
+            else if constexpr (std::is_same_v<T, std::vector<bool>>) return ArgType::BoolList;
+            else if constexpr (std::is_same_v<T, std::vector<std::string>>) return ArgType::StringList;
+            else static_assert(sizeof(T) == 0, "Unsupported argument type");
+        }       
+    };
+}
