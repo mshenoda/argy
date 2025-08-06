@@ -63,7 +63,7 @@ args.add<string>({"-m", "--model"}, "Path to model weights");
 args.add<float>({"-t", "--threshold"}, "Detection threshold");
 // Long name only (optional argument)
 args.add<bool>("--visualize", "Show detection results");
-args.add<vector<int>>("--input-size", "Input size as width height", {640, 480});
+args.add<vector<int>>("--input-size", "Input size as width height", Argy::Ints{640, 480});
 ```
 
 ### 2. Named Convenience Methods
@@ -82,8 +82,8 @@ args.addFloats("--mean", "Mean normalization values", {0.485, 0.456, 0.406});
 ### 3. Chaining Methods
 You can chain either template or convenient methods for a fluent API:
 ```cpp
-args.add<std::string>("image", "Path to input image")
-    .add<std::string>({"-m", "--model"}, "Path to model weights")
+args.add<string>("image", "Path to input image")
+    .add<string>({"-m", "--model"}, "Path to model weights")
     .add<float>({"-t", "--threshold"}, "Detection threshold")
     .add<bool>({"-v", "--visualize"}, "Show detection results");
 
