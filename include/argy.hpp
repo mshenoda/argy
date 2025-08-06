@@ -420,42 +420,80 @@ namespace Argy {
          * This prints a usage summary and all registered arguments, including their help text and default values.
          */
         void printHelp(const std::string& programName) const {
+            // ANSI color codes
+            const char* bold = "\033[1m";
+            const char* cyan = "\033[36m";
+            const char* yellow = "\033[33m";
+            const char* reset = "\033[0m";
+            const char* gray = "\033[90m";
+            const char* green = "\033[32m";
 
-            std::cout << "Usage: " << programName;
+            // Usage line
+            std::cout << bold << "Usage: " << reset << programName;
             for (const auto& positional : m_positionalOrder)
-                std::cout << " <" << positional << ">";
-            std::cout << " [options]\n";
+                std::cout << " " << cyan << "<" << positional << ">" << reset;
+            std::cout << " [options]\n\n";
 
-            for (const auto& [key, argument] : m_arguments) {
-                std::cout << "  ";
-                // Find if this argument has a short name
-                std::string shortName;
-                for (const auto& [s, l] : m_shortToLong) {
-                    if (l == key) {
-                        shortName = s;
-                        break;
-                    }
+            // Section: Positional arguments
+            if (!m_positionalOrder.empty()) {
+                std::cout << bold << "Positional:" << reset << "\n";
+                for (const auto& key : m_positionalOrder) {
+                    const auto& argument = m_arguments.at(key);
+                    std::cout << "  " << cyan << argument.name << reset;
+                    if (!argument.help.empty())
+                        std::cout << "\t" << argument.help;
+                    if (!std::holds_alternative<std::monostate>(argument.defaultValue))
+                        std::cout << gray << " (default: " << toString(argument.defaultValue) << ")" << reset;
+                    std::cout << "\n";
                 }
-                if (!shortName.empty())
-                    std::cout << "-" << shortName << ", ";
-                else
-                    std::cout << "    ";
-
-                if (argument.positional)
-                    std::cout << argument.name;
-                else
-                    std::cout << "--" << argument.name << (argument.type != ArgType::Bool ? " <value>" : "");
-
-                if (!argument.help.empty())
-                    std::cout << "\t" << argument.help;
-
-                if (!std::holds_alternative<std::monostate>(argument.defaultValue))
-                    std::cout << " (default: " << toString(argument.defaultValue) << ")";
-
                 std::cout << "\n";
             }
 
-            std::cout << "  --help, -h\tShow this help message\n";
+            // Section: Options
+            std::cout << bold << "Options:" << reset << "\n";
+            // Find max width for alignment
+            size_t maxOptLen = 0;
+            std::vector<std::string> optStrings;
+            for (const auto& [key, argument] : m_arguments) {
+                if (!argument.positional) {
+                    std::string shortName;
+                    for (const auto& [s, l] : m_shortToLong) {
+                        if (l == key) { shortName = s; break; }
+                    }
+                    std::string opt;
+                    if (!shortName.empty())
+                        opt = std::string("-") + shortName + ", --" + argument.name;
+                    else
+                        opt = "    --" + argument.name; // 4 spaces for alignment
+                    if (argument.type != ArgType::Bool)
+                        opt += " <value>";
+                    if (opt.size() > maxOptLen) maxOptLen = opt.size();
+                    optStrings.push_back(opt);
+                }
+            }
+            // Also consider help flag in maxOptLen
+            std::string helpFlag = "-h, --help";
+            if (helpFlag.size() > maxOptLen) maxOptLen = helpFlag.size();
+
+            size_t optIdx = 0;
+            for (const auto& [key, argument] : m_arguments) {
+                if (!argument.positional) {
+                    const std::string& opt = optStrings[optIdx++];
+                    std::cout << "  " << green << opt << reset;
+                    size_t pad = maxOptLen > opt.size() ? maxOptLen - opt.size() : 0;
+                    std::cout << std::string(pad + 2, ' ');
+                    if (!argument.help.empty())
+                        std::cout << argument.help;
+                    if (!std::holds_alternative<std::monostate>(argument.defaultValue))
+                        std::cout << gray << " (default: " << toString(argument.defaultValue) << ")" << reset;
+                    if (argument.required)
+                        std::cout << " " << yellow << "(required)" << reset;
+                    std::cout << "\n";
+                }
+            }
+            // Help flag, aligned
+            size_t helpPad = maxOptLen > helpFlag.size() ? maxOptLen - helpFlag.size() : 0;
+            std::cout << "  " << green << helpFlag << reset << std::string(helpPad + 2, ' ') << "Show this help message\n";
         }
 
     private:  
@@ -532,6 +570,46 @@ namespace Argy {
             if (std::holds_alternative<int>(value)) return std::to_string(std::get<int>(value));
             if (std::holds_alternative<float>(value)) return std::to_string(std::get<float>(value));
             if (std::holds_alternative<bool>(value)) return std::get<bool>(value) ? "true" : "false";
+            if (std::holds_alternative<std::vector<std::string>>(value)) {
+                const auto& vec = std::get<std::vector<std::string>>(value);
+                std::string out = "[";
+                for (size_t i = 0; i < vec.size(); ++i) {
+                    if (i > 0) out += ", ";
+                    out += '"' + vec[i] + '"';
+                }
+                out += "]";
+                return out;
+            }
+            if (std::holds_alternative<std::vector<int>>(value)) {
+                const auto& vec = std::get<std::vector<int>>(value);
+                std::string out = "[";
+                for (size_t i = 0; i < vec.size(); ++i) {
+                    if (i > 0) out += ", ";
+                    out += std::to_string(vec[i]);
+                }
+                out += "]";
+                return out;
+            }
+            if (std::holds_alternative<std::vector<float>>(value)) {
+                const auto& vec = std::get<std::vector<float>>(value);
+                std::string out = "[";
+                for (size_t i = 0; i < vec.size(); ++i) {
+                    if (i > 0) out += ", ";
+                    out += std::to_string(vec[i]);
+                }
+                out += "]";
+                return out;
+            }
+            if (std::holds_alternative<std::vector<bool>>(value)) {
+                const auto& vec = std::get<std::vector<bool>>(value);
+                std::string out = "[";
+                for (size_t i = 0; i < vec.size(); ++i) {
+                    if (i > 0) out += ", ";
+                    out += vec[i] ? "true" : "false";
+                }
+                out += "]";
+                return out;
+            }
             return "";
         }
 
