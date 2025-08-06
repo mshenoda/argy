@@ -116,6 +116,47 @@ try {
 }
 ```
 
+
+### Full main example
+```cpp
+#include <iostream>
+#include <string>
+#include <vector>
+#include <exception>
+#include "argy.hpp"
+
+int main(int argc, char* argv[]) {
+    Argy::Parser args(argc, argv);
+    args.addString("image", "Path to input image");
+    args.addString({"-m","--model"}, "Path to model");
+    args.addFloat({"-t","--threshold"}, "Detection threshold", 0.5f);
+    args.addBool({"-v", "--visualize"}, "Visualize results", false);
+    args.addInts({"-i","--input-size"}, "Input size", Argy::Ints{640, 480});
+    args.addString({"-o","--output"}, "Output directory", "results/");
+    args.addInt({"-n", "--num-classes"}, "Number of classes", 80);
+    args.addBool({"-s", "--save-vis"}, "Save visualization images", false);
+    args.addFloats({"-m","--mean"}, "Mean normalization values", Argy::Floats{0.48f, 0.45f, 0.40f});
+
+    try {
+        args.parse();
+        auto image = args.getString("image");
+        auto model = args.getString("model");
+        auto threshold = args.getFloat("threshold");
+        auto visualize = args.getFloat("visualize");
+        auto inputSize = args.getFloat("input-size");
+        auto output = args.getString("output");
+        auto numClasses = args.getInt("num-classes");
+        auto saveVis = args.getBool("save-vis");
+        auto meanValues = args.getFloats("mean");
+    } catch (const std::exception& ex) {
+        std::cerr << "Error: " << ex.what() << '\n';
+        args.printHelp(argv[0]);
+        return 1;
+    }
+    return 0;
+}
+```
+
 ## Argument Requirements
 
 - Positional arguments (those without dashes) are always **required** and cannot have default values.
