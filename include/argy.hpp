@@ -45,11 +45,11 @@ namespace Argy {
      * @code
      *   int main(int argc, char* argv[]) {
      *     Argy::Parser parser(argc, argv);
-     *     parser.addInt("--count", "Number of items", 10);
      *     parser.addString("filename", "Input file");
+     *     parser.addInt("--count", "Number of items", 10);
      *     parser.parse();
-     *     int count = parser.getInt("count");
      *     std::string file = parser.getString("filename");
+     *     int count = parser.getInt("count");
      *   }
      * @endcode
      */
