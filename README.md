@@ -1,5 +1,8 @@
-# argy
+<p align="center">
+  <img src="logo.svg" alt="argy logo" width="100"/>
+</p>
 
+## Argy
 **Effortless Command-Line Parsing for Modern C++**  
 *Because life’s too short to parse argv by hand!*
 
@@ -7,7 +10,6 @@ A modern, header-only C++17 argument parser that makes CLI development a breeze.
 
 *If you love Python's argparse or click, you'll feel right at home—argy brings that developer-friendly style to C++.*
 
----
 
 ## Features
 - 📦 **Header-only** & zero dependencies
