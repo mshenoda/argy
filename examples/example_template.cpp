@@ -18,8 +18,8 @@ int main(int argc, char* argv[]) {
     args.add<string>({"-d","--device"}, "Device to use (cpu/gpu)");
     args.add<bool>("--visualize", "Show visualization window");
     args.add<bool>("--save", "Save output results");
-    args.add<vector<float>>("--mean", "Mean values for normalization");
-    args.add<vector<float>>("--std", "Std values for normalization");
+    args.add<Floats>("--mean", "Mean values for normalization");
+    args.add<Floats>("--std", "Std values for normalization", Floats{1.0f, 1.0f, 1.0f});
 
     try {
         args.parse();
@@ -30,11 +30,11 @@ int main(int argc, char* argv[]) {
         cout << "device: " << args.get<string>("device") << "\n";
         cout << "visualize: " << args.get<bool>("visualize") << "\n";
         cout << "save: " << args.get<bool>("save") << "\n";
-        auto mean = args.get<vector<float>>("mean");
+        auto mean = args.get<Floats>("mean");
         cout << "mean:";
         for (float v : mean) cout << ' ' << v;
         cout << '\n';
-        auto std = args.get<vector<float>>("std");
+        auto std = args.get<Floats>("std");
         cout << "std:";
         for (float v : std) cout << ' ' << v;
         cout << '\n';

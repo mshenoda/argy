@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
     args.addString({"-o", "--output"}, "Output directory", "results/");
     args.addFloat({"-nms", "--nms-thresh"}, "NMS threshold", 0.45f);
     args.addBool({"-v", "--verbose"}, "Enable verbose output", false);
-    args.addInts({"-s", "--input-shape"}, "Input shape (HxW)", vector<int>{640, 480});
+    args.addInts({"-s", "--input-shape"}, "Input shape (HxW)", Ints{640, 480});
 
     try {
         args.parse();
