@@ -89,6 +89,12 @@ args.add<std::string>("image", "Path to input image")
 ```
 
 ### 4. Parsing and Accessing Arguments
+
+Example command line:
+```sh
+./my_program image.jpg --model model.onnx --threshold 0.5 --visualize --input-size 640 480
+```
+
 ```cpp
 try {
     args.parse();
