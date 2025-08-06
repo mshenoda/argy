@@ -480,6 +480,56 @@ namespace Argy {
             }
             add<T>(ArgName{shortName, longName}, help, defaultValue);
         }
+
+        // --- Initializer list overloads for convenience methods ---
+        Parser& addString(std::initializer_list<const char*> names, const std::string& help = "", std::optional<std::string> defaultValue = std::nullopt) {
+            auto it = names.begin();
+            std::string shortName = (it != names.end()) ? std::string(*it++) : "";
+            std::string longName = (it != names.end()) ? std::string(*it) : "";
+            return addString(ArgName{shortName, longName}, help, defaultValue);
+        }
+        Parser& addInt(std::initializer_list<const char*> names, const std::string& help = "", std::optional<int> defaultValue = std::nullopt) {
+            auto it = names.begin();
+            std::string shortName = (it != names.end()) ? std::string(*it++) : "";
+            std::string longName = (it != names.end()) ? std::string(*it) : "";
+            return addInt(ArgName{shortName, longName}, help, defaultValue);
+        }
+        Parser& addFloat(std::initializer_list<const char*> names, const std::string& help = "", std::optional<float> defaultValue = std::nullopt) {
+            auto it = names.begin();
+            std::string shortName = (it != names.end()) ? std::string(*it++) : "";
+            std::string longName = (it != names.end()) ? std::string(*it) : "";
+            return addFloat(ArgName{shortName, longName}, help, defaultValue);
+        }
+        Parser& addBool(std::initializer_list<const char*> names, const std::string& help = "", std::optional<bool> defaultValue = std::nullopt) {
+            auto it = names.begin();
+            std::string shortName = (it != names.end()) ? std::string(*it++) : "";
+            std::string longName = (it != names.end()) ? std::string(*it) : "";
+            return addBool(ArgName{shortName, longName}, help, defaultValue);
+        }
+        Parser& addStrings(std::initializer_list<const char*> names, const std::string& help = "", std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
+            auto it = names.begin();
+            std::string shortName = (it != names.end()) ? std::string(*it++) : "";
+            std::string longName = (it != names.end()) ? std::string(*it) : "";
+            return addStrings(ArgName{shortName, longName}, help, defaultValue);
+        }
+        Parser& addInts(std::initializer_list<const char*> names, const std::string& help = "", std::optional<std::vector<int>> defaultValue = std::nullopt) {
+            auto it = names.begin();
+            std::string shortName = (it != names.end()) ? std::string(*it++) : "";
+            std::string longName = (it != names.end()) ? std::string(*it) : "";
+            return addInts(ArgName{shortName, longName}, help, defaultValue);
+        }
+        Parser& addFloats(std::initializer_list<const char*> names, const std::string& help = "", std::optional<std::vector<float>> defaultValue = std::nullopt) {
+            auto it = names.begin();
+            std::string shortName = (it != names.end()) ? std::string(*it++) : "";
+            std::string longName = (it != names.end()) ? std::string(*it) : "";
+            return addFloats(ArgName{shortName, longName}, help, defaultValue);
+        }
+        Parser& addBools(std::initializer_list<const char*> names, const std::string& help = "", std::optional<std::vector<bool>> defaultValue = std::nullopt) {
+            auto it = names.begin();
+            std::string shortName = (it != names.end()) ? std::string(*it++) : "";
+            std::string longName = (it != names.end()) ? std::string(*it) : "";
+            return addBools(ArgName{shortName, longName}, help, defaultValue);
+        }
     private:  
         /**
          * @brief Variant to hold any supported argument value type.

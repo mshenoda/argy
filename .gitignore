@@ -6,29 +6,18 @@
 *.lo
 *.o
 *.obj
+*.ko
 
 # Precompiled Headers
 *.gch
 *.pch
-
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
 
 # Compiled Dynamic libraries
 *.so
 *.dylib
 *.dll
 
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
+# Static libraries
 *.a
 *.lib
 
@@ -37,5 +26,85 @@
 *.out
 *.app
 
-# debug information files
-*.dwo
+# CMake
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+*.cmake
+
+# Build directories
+build/
+out/
+bin/
+x64/
+x86/
+Debug/
+Release/
+MinSizeRel/
+RelWithDebInfo/
+.vscode/ipch/
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.vscode/ipch/
+
+# CLion
+.idea/
+
+# QtCreator
+*.user
+
+# Visual Studio
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.VC.opendb
+
+# Eclipse
+.settings/
+.project
+.cproject
+
+# Doxygen
+docs/html/
+docs/latex/
+
+# MacOS
+.DS_Store
+
+# Cache files for Conan
+.conan/
+
+# Cache directories for ccache
+.ccache/
+
+# Ninja build files
+*.ninja
+.ninja_deps
+.ninja_log
+
+# Temporary files
+*~
+*.swp
+*.swo
+
+# Test binaries
+test-bin/
+
+# Coverage files
+*.gcno
+*.gcda
+*.gcov
