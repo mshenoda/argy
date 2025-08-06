@@ -18,25 +18,33 @@ A modern, header-only C++17 argument parser that makes CLI development a breeze.
 - 🛠️ Modern, chainable API
 
 ## Installation
-Simply copy the `include/argy.hpp` file into your project and add the `include` directory to your include path.
 
-With CMake (add_subdirectory):
-```cmake
-add_subdirectory(argy)
-target_link_libraries(your_target PRIVATE argy)
-```
+There are several ways to use argy in your project:
 
-With CMake (FetchContent):
-```cmake
-include(FetchContent)
-FetchContent_Declare(
-  argy
-  GIT_REPOSITORY https://github.com/mshenoda/argy.git
-  GIT_TAG        main # or a specific tag/release
-)
-FetchContent_MakeAvailable(argy)
-target_link_libraries(your_target PRIVATE argy)
-```
+- **With CMake (FetchContent) (Recommended):**
+  ```cmake
+  include(FetchContent)
+  FetchContent_Declare(
+    argy
+    GIT_REPOSITORY https://github.com/mshenoda/argy.git
+    GIT_TAG        main # or a specific tag/release
+  )
+  FetchContent_MakeAvailable(argy)
+  target_link_libraries(your_target PRIVATE argy)
+  ```
+
+- **With CMake (add_subdirectory):**
+  First, clone the repository:
+  ```sh
+  git clone https://github.com/mshenoda/argy.git
+  ```
+  Then, in your CMakeLists.txt:
+  ```cmake
+  add_subdirectory(argy)
+  target_link_libraries(your_target PRIVATE argy)
+  ```
+
+- **Header-only (any project type):** Simply copy the `include/argy.hpp` file into your project.
 
 ## Usage
 
