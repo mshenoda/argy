@@ -55,6 +55,7 @@ RelWithDebInfo/
 !.vscode/launch.json
 !.vscode/extensions.json
 .vscode/ipch/
+.vscode/
 
 # CLion
 .idea/
