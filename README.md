@@ -6,6 +6,15 @@
   <a href="LICENSE">
     <img src="https://img.shields.io/github/license/mshenoda/argy?color=blue" alt="License"/>
   </a>
+  <a href="https://github.com/mshenoda/argy/actions/workflows/ci-linux.yml">
+    <img src="https://github.com/mshenoda/argy/actions/workflows/ci-linux.yml/badge.svg" alt="Linux Build"/>
+  </a>
+  <a href="https://github.com/mshenoda/argy/actions/workflows/ci-windows.yml">
+    <img src="https://github.com/mshenoda/argy/actions/workflows/ci-windows.yml/badge.svg" alt="Windows Build"/>
+  </a>
+  <a href="https://github.com/mshenoda/argy/actions/workflows/ci-macos.yml">
+    <img src="https://github.com/mshenoda/argy/actions/workflows/ci-macos.yml/badge.svg" alt="macOS Build"/>
+  </a>
 </p>
 
 ## Argy
