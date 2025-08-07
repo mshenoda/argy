@@ -15,9 +15,6 @@
   <a href="https://github.com/mshenoda/argy/actions/workflows/ci-macos.yml">
     <img src="https://github.com/mshenoda/argy/actions/workflows/ci-macos.yml/badge.svg" alt="macOS Build"/>
   </a>
-  <a href="https://github.com/mshenoda/argy/actions/workflows/ci-ios.yml">
-    <img src="https://github.com/mshenoda/argy/actions/workflows/ci-ios.yml/badge.svg" alt="iOS Build"/>
-  </a>
 </p>
 
 ## Argy
