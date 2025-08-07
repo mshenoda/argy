@@ -710,11 +710,6 @@ namespace Argy {
         template<typename T>
         static T fromString(const std::string& value);
 
-        template<> static int fromString<int>(const std::string& value) { return std::stoi(value); }
-        template<> static float fromString<float>(const std::string& value) { return std::stof(value); }
-        template<> static bool fromString<bool>(const std::string& value) { return value == "true" || value == "1"; }
-        template<> static std::string fromString<std::string>(const std::string& value) { return value; }
-
         /**
          * @brief Convert vector of strings to vector of type T.
          * @tparam T Target type.
@@ -767,4 +762,13 @@ namespace Argy {
             else static_assert(sizeof(T) == 0, "Unsupported argument type");
         }       
     };
+
+    template<>
+    inline int Parser::fromString<int>(const std::string& value) { return std::stoi(value); }
+    template<>
+    inline float Parser::fromString<float>(const std::string& value) { return std::stof(value); }
+    template<>
+    inline bool Parser::fromString<bool>(const std::string& value) { return value == "true" || value == "1"; }
+    template<>
+    inline std::string Parser::fromString<std::string>(const std::string& value) { return value; }
 }
