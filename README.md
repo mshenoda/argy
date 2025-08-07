@@ -212,25 +212,27 @@ int main(int argc, char* argv[]) {
 
 ## Example Help Output
 
-Argy prints a help message when you run your program with `--help` or `-h`, or call `args.printHelp(argv[0]);`. The actual output will be colorized and bold in supported terminals. For documentation, here is a simulated colorized version using HTML (may not render everywhere):
+Argy prints a help message when you run your program with `--help` or `-h`, or call `args.printHelp(argv[0]);`. The actual output will be colorized and bold in supported terminals. Here is the plain text of help message:
 
-<div style="font-family: monospace; background: #222; color: #eee; padding: 1em; border-radius: 6px;">
-  <span style="font-weight:bold;">Usage:</span> <span style="color:#eee;">./my_program</span> <span style="color:#00bfff;">&lt;image&gt;</span> [options]<br><br>
-  <span style="font-weight:bold;">Positional:</span><br>
-  &nbsp;&nbsp;<span style="color:#00bfff;">image</span>                <span style="color:#eee;">Path to input image                <span style="color:#ffd700;">(required)</span></span><br><br>
-  <span style="font-weight:bold;">Options:</span><br>
-  &nbsp;&nbsp;<span style="color:#00e390;">-m, --model</span>          <span style="color:#eee;">Path to model                      <span style="color:#ffd700;">(required)</span></span><br>
-  &nbsp;&nbsp;<span style="color:#00e390;">-t, --threshold</span>      <span style="color:#eee;">Detection threshold                <span style="color:#eee;">(default: 0.5)</span></span><br>
-  &nbsp;&nbsp;<span style="color:#00e390;">-v, --visualize</span>      <span style="color:#eee;">Visualize results                  <span style="color:#eee;">(default: false)</span></span><br>
-  &nbsp;&nbsp;<span style="color:#00e390;">-i, --input-size</span>     <span style="color:#eee;">Input size                         <span style="color:#eee;">(default: 640, 480)</span></span><br>
-  &nbsp;&nbsp;<span style="color:#00e390;">-o, --output</span>         <span style="color:#eee;">Output directory                   <span style="color:#eee;">(default: results/)</span></span><br>
-  &nbsp;&nbsp;<span style="color:#00e390;">-n, --num-classes</span>    <span style="color:#eee;">Number of classes                  <span style="color:#eee;">(default: 80)</span></span><br>
-  &nbsp;&nbsp;<span style="color:#00e390;">-s, --save-vis</span>       <span style="color:#eee;">Save visualization images          <span style="color:#eee;">(default: false)</span></span><br>
-  &nbsp;&nbsp;<span style="color:#00e390;">-m, --mean</span>           <span style="color:#eee;">Mean normalization values          <span style="color:#eee;">(default: 0.48, 0.45, 0.40)</span></span><br>
-  &nbsp;&nbsp;<span style="color:#00e390;">-h, --help</span>           <span style="color:#eee;">Show this help message</span><br>
-</div>
+```
+Usage: ./my_program <image> [options]
 
-> **Note:** This HTML block simulates terminal colors. It may not render in all Markdown viewers (e.g., GitHub, VS Code), but works in some web-based Markdown renderers.
+Positional:
+  image                Path to input image                (required)
+
+Options:
+  -m, --model          Path to model                      (required)
+  -t, --threshold      Detection threshold                (default: 0.5)
+  -v, --visualize      Visualize results                  (default: false)
+  -i, --input-size     Input size                         (default: 640, 480)
+  -o, --output         Output directory                   (default: results/)
+  -n, --num-classes    Number of classes                  (default: 80)
+  -s, --save-vis       Save visualization images          (default: false)
+  -m, --mean           Mean normalization values          (default: 0.48, 0.45, 0.40)
+  -h, --help           Show this help message
+```
+
+> **Note:** The actual output in your terminal will be colorized and bold if ANSI colors are supported.
 
 ## Argument Requirements
 
