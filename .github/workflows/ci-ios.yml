@@ -1,0 +1,30 @@
+name: iOS CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest
+      - name: Install dependencies
+        run: |
+          # Add your dependency installation commands here
+          echo "No dependencies specified"
+      - name: Build
+        run: |
+          # Replace with your actual build command, e.g.:
+          xcodebuild -project YourProject.xcodeproj -scheme YourScheme -sdk iphonesimulator
+      - name: Run tests
+        run: |
+          # Replace with your test command, e.g.:
+          xcodebuild test -project YourProject.xcodeproj -scheme YourScheme -sdk iphonesimulator
