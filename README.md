@@ -58,8 +58,8 @@ using namespace std;
 using namespace Argy;
 Parser args(argc, argv);
 args.add<string>("image", "Path to input image");
-args.add<string>({"-m", "--model"}, "Path to model weights");
-args.add<float>({"-t", "--threshold"}, "Detection threshold", 0.5f);
+args.add<string>("-m", "--model", "Path to model weights");
+args.add<float>("-t", "--threshold", "Detection threshold", 0.5f);
 args.add<bool>("--visualize", "Show detection results", false);
 args.add<Ints>("--input-size", "Input size", Ints{640, 480});
 ```
@@ -71,8 +71,8 @@ using namespace std;
 using namespace Argy;
 Parser args(argc, argv);
 args.addString("image", "Path to input image");
-args.addInt({"-n", "--num-classes"}, "Number of classes", 80);
-args.addBool({"-s", "--save-vis"}, "Save visualization images", false);
+args.addInt("-n", "--num-classes", "Number of classes", 80);
+args.addBool("-s", "--save-vis", "Save visualization images", false);
 ```
 
 ### Chaining Methods
@@ -84,8 +84,8 @@ using namespace std;
 using namespace Argy;
 Parser args(argc, argv);
 args.add<string>("image", "Path to input image")
-    .add<string>({"-m", "--model"}, "Path to model weights")
-    .add<float>({"-t", "--threshold"}, "Detection threshold");
+    .add<string>("-m", "--model", "Path to model weights")
+    .add<float>("-t", "--threshold", "Detection threshold");
 ```
 
 // Named convenience method chaining
@@ -94,8 +94,8 @@ using namespace std;
 using namespace Argy;
 Parser args(argc, argv);
 args.addString("image", "Path to input image")
-    .addInt({"-n", "--num-classes"}, "Number of classes", 80)
-    .addBool({"-s", "--save-vis"}, "Save visualization images", false);
+    .addInt("-n", "--num-classes", "Number of classes", 80)
+    .addBool("-s", "--save-vis", "Save visualization images", false);
 ```
 
 ### Parsing and Accessing Arguments
@@ -129,14 +129,14 @@ int main(int argc, char* argv[]) {
     try {
         // add arguments
         args.add<string>("image", "Path to input image");
-        args.add<string>({"-m","--model"}, "Path to model");
-        args.add<float>({"-t","--threshold"}, "Detection threshold", 0.5f);
-        args.add<bool>({"-v", "--visualize"}, "Visualize results", false);
-        args.add<Ints>({"-i","--input-size"}, "Input size", Ints{640, 480});
-        args.add<string>({"-o","--output"}, "Output directory", "results/");
-        args.add<int>({"-n", "--num-classes"}, "Number of classes", 80);
-        args.add<bool>({"-s", "--save-vis"}, "Save visualization images", false);
-        args.add<Floats>({"-m","--mean"}, "Mean normalization values", Floats{0.48f, 0.45f, 0.40f});
+        args.add<string>("-m","--model", "Path to model");
+        args.add<float>("-t","--threshold", "Detection threshold", 0.5f);
+        args.add<bool>("-v", "--visualize", "Visualize results", false);
+        args.add<Ints>("-i","--input-size", "Input size", Ints{640, 480});
+        args.add<string>("-o","--output", "Output directory", "results/");
+        args.add<int>("-n", "--num-classes", "Number of classes", 80);
+        args.add<bool>("-s", "--save-vis", "Save visualization images", false);
+        args.add<Floats>("-m","--mean", "Mean normalization values", Floats{0.48f, 0.45f, 0.40f});
 
         // parse arguments
         args.parse();
@@ -177,14 +177,14 @@ int main(int argc, char* argv[]) {
     try {
         // add arguments
         args.addString("image", "Path to input image");
-        args.addString({"-m","--model"}, "Path to model");
-        args.addFloat({"-t","--threshold"}, "Detection threshold", 0.5f);
-        args.addBool({"-v", "--visualize"}, "Visualize results", false);
-        args.addInts({"-i","--input-size"}, "Input size", Ints{640, 480});
-        args.addString({"-o","--output"}, "Output directory", "results/");
-        args.addInt({"-n", "--num-classes"}, "Number of classes", 80);
-        args.addBool({"-s", "--save-vis"}, "Save visualization images", false);
-        args.addFloats({"-m","--mean"}, "Mean normalization values", Floats{0.48f, 0.45f, 0.40f});
+        args.addString("-m","--model", "Path to model");
+        args.addFloat("-t","--threshold", "Detection threshold", 0.5f);
+        args.addBool("-v", "--visualize", "Visualize results", false);
+        args.addInts("-i","--input-size", "Input size", Ints{640, 480});
+        args.addString("-o","--output", "Output directory", "results/");
+        args.addInt("-n", "--num-classes", "Number of classes", 80);
+        args.addBool("-s", "--save-vis", "Save visualization images", false);
+        args.addFloats("-m","--mean", "Mean normalization values", Floats{0.48f, 0.45f, 0.40f});
 
         // parse arguments
         args.parse();
@@ -218,18 +218,18 @@ Argy prints a help message when you run your program with `--help` or `-h`, or c
 Usage: ./my_program <image> [options]
 
 Positional:
-  image                Path to input image                (required)
+  image              Path to input image       (required)
 
 Options:
-  -m, --model          Path to model                      (required)
-  -t, --threshold      Detection threshold                (default: 0.5)
-  -v, --visualize      Visualize results                  (default: false)
-  -i, --input-size     Input size                         (default: 640, 480)
-  -o, --output         Output directory                   (default: results/)
-  -n, --num-classes    Number of classes                  (default: 80)
-  -s, --save-vis       Save visualization images          (default: false)
-  -m, --mean           Mean normalization values          (default: 0.48, 0.45, 0.40)
-  -h, --help           Show this help message
+  -m, --model        Path to model             (required)
+  -t, --threshold    Detection threshold       (default: 0.5)
+  -v, --visualize    Visualize results         (default: false)
+  -i, --input-size   Input size                (default: 640, 480)
+  -o, --output       Output directory          (default: results/)
+  -n, --num-classes  Number of classes         (default: 80)
+  -s, --save-vis     Save visualization images (default: false)
+  -m, --mean         Mean normalization values (default: 0.48, 0.45, 0.40)
+  -h, --help         Show this help message
 ```
 
 > **Note:** The actual output in your terminal will be colorized and bold if ANSI colors are supported.
