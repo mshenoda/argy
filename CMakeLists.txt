@@ -18,4 +18,7 @@ if(PROJECT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
         add_executable(example_named examples/example_named.cpp)
         target_link_libraries(example_named PRIVATE argy)
     endif()
+
+    enable_testing()
+    add_subdirectory(tests)
 endif()
