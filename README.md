@@ -2,7 +2,14 @@
   <img src="logo.svg" alt="argy logo" width="100"/>
 </p>
 
+<p align="center">
+  <a href="LICENSE">
+    <img src="https://img.shields.io/github/license/mshenoda/argy?color=blue" alt="License"/>
+  </a>
+</p>
+
 ## Argy
+
 **Effortless Command-Line Parsing for Modern C++**  
 *Because life’s too short to parse argv by hand!*
 
