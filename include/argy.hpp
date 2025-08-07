@@ -226,7 +226,7 @@ namespace Argy {
                  const std::string& help = "",
                  std::optional<T> defaultValue = std::nullopt) {
     
-            if (Argy::startsWith(shortName, "--") && !Argy::startsWith(l, "--")) {
+            if (Argy::startsWith(shortName, "--") && !Argy::startsWith(longName, "--")) {
                 const std::string h = longName;
                 const std::string d = help;
                 return add<std::string>(shortName, h, d);
