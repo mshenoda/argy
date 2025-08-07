@@ -26,4 +26,9 @@ jobs:
       - name: Build
         run: cmake --build build --config Release
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            ctest --test-dir build --output-on-failure -C Release
+          else
+            ctest --test-dir build --output-on-failure
+          fi
