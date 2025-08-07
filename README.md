@@ -48,67 +48,63 @@ There are several ways to use argy in your project:
 
 - **Header-only (any project type):** Simply copy the `include/argy.hpp` file into your project.
 
-## Usage
+## API Usage
 
-### 1. Template Methods
-Define arguments using the template `add<T>()` method:
+### Template Methods
+Define arguments and access them with the template API:
 ```cpp
 #include <argy.hpp>
 using namespace std;
-Argy::Parser args(argc, argv);
-// Positional argument (no dashes)
+using namespace Argy;
+Parser args(argc, argv);
 args.add<string>("image", "Path to input image");
-// Both short and long name (optional argument)
 args.add<string>({"-m", "--model"}, "Path to model weights");
-args.add<float>({"-t", "--threshold"}, "Detection threshold");
-// Long name only (optional argument)
-args.add<bool>("--visualize", "Show detection results");
-args.add<vector<int>>("--input-size", "Input size as width height", Argy::Ints{640, 480});
+args.add<float>({"-t", "--threshold"}, "Detection threshold", 0.5f);
+args.add<bool>("--visualize", "Show detection results", false);
+args.add<Ints>("--input-size", "Input size", Ints{640, 480});
 ```
 
-### 2. Named Convenience Methods
-Define arguments using named convenience methods:
+### Named Convenience Methods
+Use named methods for clarity:
 ```cpp
-// Positional argument (no dashes)
+using namespace std;
+using namespace Argy;
+Parser args(argc, argv);
 args.addString("image", "Path to input image");
-// Long name only
-args.addString("--output", "Output directory", "results/");
-// Both short and long name
 args.addInt({"-n", "--num-classes"}, "Number of classes", 80);
 args.addBool({"-s", "--save-vis"}, "Save visualization images", false);
-args.addFloats("--mean", "Mean normalization values", {0.485, 0.456, 0.406});
 ```
 
-### 3. Chaining Methods
-You can chain either template or convenient methods for a fluent API:
+### Chaining Methods
+Chain argument definitions for a fluent API:
+
+// Template method chaining
 ```cpp
+using namespace std;
+using namespace Argy;
+Parser args(argc, argv);
 args.add<string>("image", "Path to input image")
     .add<string>({"-m", "--model"}, "Path to model weights")
-    .add<float>({"-t", "--threshold"}, "Detection threshold")
-    .add<bool>({"-v", "--visualize"}, "Show detection results");
-
-// Or chain convenient methods as above
+    .add<float>({"-t", "--threshold"}, "Detection threshold");
 ```
 
-### 4. Parsing and Accessing Arguments
-
-Example command line:
-```sh
-./my_program image.jpg --model model.onnx --threshold 0.5 --visualize --input-size 640 480
+// Named convenience method chaining
+```cpp
+using namespace std;
+using namespace Argy;
+Parser args(argc, argv);
+args.addString("image", "Path to input image")
+    .addInt({"-n", "--num-classes"}, "Number of classes", 80)
+    .addBool({"-s", "--save-vis"}, "Save visualization images", false);
 ```
 
+### Parsing and Accessing Arguments
+Typical usage pattern:
 ```cpp
 try {
     args.parse();
     auto image = args.get<string>("image");
-    auto model = args.get<string>("model");
     auto threshold = args.get<float>("threshold");
-    auto visualize = args.get<bool>("visualize");
-    auto inputSize = args.get<vector<int>>("input-size");
-    auto output = args.getString("output");
-    auto numClasses = args.getInt("num-classes");
-    auto saveVis = args.getBool("save-vis");
-    auto meanValues = args.getFloats("mean");
 } catch (const exception& ex) {
     cerr << "Error: " << ex.what() << '\n';
     args.printHelp(argv[0]);
@@ -116,28 +112,79 @@ try {
 }
 ```
 
+## Full Examples
 
-### Full main example
+### Full example using template methods
 ```cpp
 #include <iostream>
 #include <string>
 #include <vector>
 #include <exception>
 #include "argy.hpp"
+using namespace std;
+using namespace Argy;
 
 int main(int argc, char* argv[]) {
-    Argy::Parser args(argc, argv);
+    Parser args(argc, argv);
+    try {
+        // add arguments
+        args.add<string>("image", "Path to input image");
+        args.add<string>({"-m","--model"}, "Path to model");
+        args.add<float>({"-t","--threshold"}, "Detection threshold", 0.5f);
+        args.add<bool>({"-v", "--visualize"}, "Visualize results", false);
+        args.add<Ints>({"-i","--input-size"}, "Input size", Ints{640, 480});
+        args.add<string>({"-o","--output"}, "Output directory", "results/");
+        args.add<int>({"-n", "--num-classes"}, "Number of classes", 80);
+        args.add<bool>({"-s", "--save-vis"}, "Save visualization images", false);
+        args.add<Floats>({"-m","--mean"}, "Mean normalization values", Floats{0.48f, 0.45f, 0.40f});
+
+        // parse arguments
+        args.parse();
+
+        // get parsed arguments
+        auto image = args.get<string>("image");
+        auto model = args.get<string>("model");
+        auto threshold = args.get<float>("threshold");
+        auto visualize = args.get<bool>("visualize");
+        auto inputSize = args.get<Ints>("input-size");
+        auto output = args.get<string>("output");
+        auto numClasses = args.get<int>("num-classes");
+        auto saveVis = args.get<bool>("save-vis");
+        auto meanValues = args.get<Floats>("mean");
+
+        // use the arguments...
+    } catch (const exception& ex) {
+        cerr << "Error: " << ex.what() << '\n';
+        args.printHelp(argv[0]);
+        return 1;
+    }
+    return 0;
+}
+```
+
+### Full example using named convenience methods
+```cpp
+#include <iostream>
+#include <string>
+#include <vector>
+#include <exception>
+#include "argy.hpp"
+using namespace std;
+using namespace Argy;
+
+int main(int argc, char* argv[]) {
+    Parser args(argc, argv);
     try {
         // add arguments
         args.addString("image", "Path to input image");
         args.addString({"-m","--model"}, "Path to model");
         args.addFloat({"-t","--threshold"}, "Detection threshold", 0.5f);
         args.addBool({"-v", "--visualize"}, "Visualize results", false);
-        args.addInts({"-i","--input-size"}, "Input size", Argy::Ints{640, 480});
+        args.addInts({"-i","--input-size"}, "Input size", Ints{640, 480});
         args.addString({"-o","--output"}, "Output directory", "results/");
         args.addInt({"-n", "--num-classes"}, "Number of classes", 80);
         args.addBool({"-s", "--save-vis"}, "Save visualization images", false);
-        args.addFloats({"-m","--mean"}, "Mean normalization values", Argy::Floats{0.48f, 0.45f, 0.40f});
+        args.addFloats({"-m","--mean"}, "Mean normalization values", Floats{0.48f, 0.45f, 0.40f});
 
         // parse arguments
         args.parse();
@@ -154,14 +201,36 @@ int main(int argc, char* argv[]) {
         auto meanValues = args.getFloats("mean");
 
         // use the arguments...
-    } catch (const std::exception& ex) {
-        std::cerr << "Error: " << ex.what() << '\n';
+    } catch (const exception& ex) {
+        cerr << "Error: " << ex.what() << '\n';
         args.printHelp(argv[0]);
         return 1;
     }
     return 0;
 }
 ```
+
+## Example Help Output
+
+Argy prints a help message when you run your program with `--help` or `-h`, or call `args.printHelp(argv[0]);`. The actual output will be colorized and bold in supported terminals. For documentation, here is a simulated colorized version using HTML (may not render everywhere):
+
+<div style="font-family: monospace; background: #222; color: #eee; padding: 1em; border-radius: 6px;">
+  <span style="font-weight:bold;">Usage:</span> <span style="color:#eee;">./my_program</span> <span style="color:#00bfff;">&lt;image&gt;</span> [options]<br><br>
+  <span style="font-weight:bold;">Positional:</span><br>
+  &nbsp;&nbsp;<span style="color:#00bfff;">image</span>                <span style="color:#eee;">Path to input image                <span style="color:#ffd700;">(required)</span></span><br><br>
+  <span style="font-weight:bold;">Options:</span><br>
+  &nbsp;&nbsp;<span style="color:#00e390;">-m, --model</span>          <span style="color:#eee;">Path to model                      <span style="color:#ffd700;">(required)</span></span><br>
+  &nbsp;&nbsp;<span style="color:#00e390;">-t, --threshold</span>      <span style="color:#eee;">Detection threshold                <span style="color:#eee;">(default: 0.5)</span></span><br>
+  &nbsp;&nbsp;<span style="color:#00e390;">-v, --visualize</span>      <span style="color:#eee;">Visualize results                  <span style="color:#eee;">(default: false)</span></span><br>
+  &nbsp;&nbsp;<span style="color:#00e390;">-i, --input-size</span>     <span style="color:#eee;">Input size                         <span style="color:#eee;">(default: 640, 480)</span></span><br>
+  &nbsp;&nbsp;<span style="color:#00e390;">-o, --output</span>         <span style="color:#eee;">Output directory                   <span style="color:#eee;">(default: results/)</span></span><br>
+  &nbsp;&nbsp;<span style="color:#00e390;">-n, --num-classes</span>    <span style="color:#eee;">Number of classes                  <span style="color:#eee;">(default: 80)</span></span><br>
+  &nbsp;&nbsp;<span style="color:#00e390;">-s, --save-vis</span>       <span style="color:#eee;">Save visualization images          <span style="color:#eee;">(default: false)</span></span><br>
+  &nbsp;&nbsp;<span style="color:#00e390;">-m, --mean</span>           <span style="color:#eee;">Mean normalization values          <span style="color:#eee;">(default: 0.48, 0.45, 0.40)</span></span><br>
+  &nbsp;&nbsp;<span style="color:#00e390;">-h, --help</span>           <span style="color:#eee;">Show this help message</span><br>
+</div>
+
+> **Note:** This HTML block simulates terminal colors. It may not render in all Markdown viewers (e.g., GitHub, VS Code), but works in some web-based Markdown renderers.
 
 ## Argument Requirements
 
@@ -171,3 +240,4 @@ int main(int argc, char* argv[]) {
 
 ## Contributing
 Contributions are welcome! Please open issues or pull requests for bug fixes, features, or improvements.
+
