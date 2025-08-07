@@ -9,39 +9,57 @@ using namespace Argy;
 
 int main(int argc, char* argv[]) {
     Argy::Parser args(argc, argv);
-
-    // Template style argument definitions
-    args.add<string>("image", "Path to input image");
-    args.add<string>({"-m","--model"}, "Path to model file");
-    args.add<float>({"-t","--threshold"}, "Confidence threshold");
-    args.add<int>({"-b","--batch"}, "Batch size");
-    args.add<string>({"-d","--device"}, "Device to use (cpu/gpu)");
-    args.add<bool>("--visualize", "Show visualization window");
-    args.add<bool>("--save", "Save output results");
-    args.add<Floats>("--mean", "Mean values for normalization");
-    args.add<Floats>("--std", "Std values for normalization", Floats{1.0f, 1.0f, 1.0f});
-
     try {
+        // Positional argument
+        args.add<string>("filename", "Input file");
+
+        // Optional argument with short and long names, help text, and default value
+        args.add<int>("-c", "--count", "Number of items", 10);
+
+        // Optional boolean flag
+        args.add<bool>("-v", "--verbose", "Enable verbose output", false);
+
+        // Float argument
+        args.add<float>("-r", "--ratio", "Ratio value", 0.5f);
+
+        // Vector<int> argument
+        args.add<Ints>("-i", "--ids", "List of IDs", Ints{1, 2, 3});
+
+        // Vector<float> argument
+        args.add<Floats>("-s", "--scores", "List of scores", Floats{0.1f, 0.2f, 0.3f});
+
+        // Vector<bool> argument
+        args.add<Bools>("-f", "--flags", "List of flags", Bools{true, false, true});
+
+        // Vector<string> argument
+        args.add<Strings>("-t", "--tags", "List of tags", Strings{"alpha", "beta"});
+
         args.parse();
-        cout << "image: " << args.get<string>("image") << "\n";
-        cout << "model: " << args.get<string>("model") << "\n";
-        cout << "threshold: " << args.get<float>("threshold") << "\n";
-        cout << "batch: " << args.get<int>("batch") << "\n";
-        cout << "device: " << args.get<string>("device") << "\n";
-        cout << "visualize: " << args.get<bool>("visualize") << "\n";
-        cout << "save: " << args.get<bool>("save") << "\n";
-        auto mean = args.get<Floats>("mean");
-        cout << "mean:";
-        for (float v : mean) cout << ' ' << v;
-        cout << '\n';
-        auto std = args.get<Floats>("std");
-        cout << "std:";
-        for (float v : std) cout << ' ' << v;
-        cout << '\n';
-    } catch (const exception& ex) {
-        cerr << "Error: " << ex.what() << '\n';
-        args.printHelp(argv[0]);
+
+        auto count = args.get<int>("count");
+        auto filename = args.get<string>("filename");
+        auto verbose = args.get<bool>("verbose");
+        auto ratio = args.get<float>("ratio");
+        auto ids = args.get<Ints>("ids");
+        auto scores = args.get<Floats>("scores");
+        auto flags = args.get<Bools>("flags");
+        auto tags = args.get<Strings>("tags");
+
+        cout << "Filename: " << filename << "\n";
+        cout << "Count: " << count << "\n";
+        cout << "Verbose: " << (verbose ? "true" : "false") << "\n";
+        cout << "Ratio: " << ratio << "\n";
+        cout << "IDs: ";
+        for (auto v : ids) cout << v << " ";
+        cout << "\nScores: ";
+        for (auto v : scores) cout << v << " ";
+        cout << "\nFlags: ";
+        for (auto v : flags) cout << (v ? "true" : "false") << " ";
+        cout << "\nTags: ";
+        for (const auto& v : tags) cout << v << " ";
+        cout << "\n";
+    } catch (const std::exception& ex) {
+        cerr << "Error: " << ex.what() << endl;
         return 1;
     }
-    return 0;
 }

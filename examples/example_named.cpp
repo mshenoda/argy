@@ -9,27 +9,57 @@ using namespace Argy;
 
 int main(int argc, char* argv[]) {
     Argy::Parser args(argc, argv);
-
-    // Named convenience methods for argument definitions
-    args.addString("file", "Input File");
-    args.addString({"-o", "--output"}, "Output directory");
-    args.addFloat({"-nms", "--nms-thresh"}, "NMS threshold", 0.45f);
-    args.addBool({"-v", "--verbose"}, "Enable verbose output", false);
-    args.addInts({"-s", "--input-shape"}, "Input shape (HxW)", vector<int>{640, 480});
-
     try {
+        // Positional argument
+        args.addString("filename", "Input file");
+
+        // Optional argument with short and long names, help text, and default value
+        args.addInt("-c", "--count", "Number of items", 10);
+
+        // Optional boolean flag
+        args.addBool("-v", "--verbose", "Enable verbose output", false);
+
+        // Float argument
+        args.addFloat("-r", "--ratio", "Ratio value", 0.5f);
+
+        // Vector<int> argument
+        args.addInts("-i", "--ids", "List of IDs", std::vector<int>{1, 2, 3});
+
+        // Vector<float> argument
+        args.addFloats("-s", "--scores", "List of scores", std::vector<float>{0.1f, 0.2f, 0.3f});
+
+        // Vector<bool> argument
+        args.addBools("-f", "--flags", "List of flags", std::vector<bool>{true, false, true});
+
+        // Vector<string> argument
+        args.addStrings("-t", "--tags", "List of tags", std::vector<std::string>{"alpha", "beta"});
+
         args.parse();
-        cout << "output: " << args.getString("output") << "\n";
-        cout << "nms-thresh: " << args.getFloat("nms-thresh") << "\n";
-        cout << "verbose: " << args.getBool("verbose") << "\n";
-        auto input_shape = args.getInts("input-shape");
-        cout << "input-shape:";
-        for (int s : input_shape) cout << ' ' << s;
-        cout << '\n';
-    } catch (const exception& ex) {
-        cerr << "Error: " << ex.what() << '\n';
-        args.printHelp(argv[0]);
+
+        auto count = args.getInt("count");
+        auto filename = args.getString("filename");
+        auto verbose = args.getBool("verbose");
+        auto ratio = args.getFloat("ratio");
+        auto ids = args.getInts("ids");
+        auto scores = args.getFloats("scores");
+        auto flags = args.getBools("flags");
+        auto tags = args.getStrings("tags");
+
+        cout << "Filename: " << filename << "\n";
+        cout << "Count: " << count << "\n";
+        cout << "Verbose: " << (verbose ? "true" : "false") << "\n";
+        cout << "Ratio: " << ratio << "\n";
+        cout << "IDs: ";
+        for (auto v : ids) cout << v << " ";
+        cout << "\nScores: ";
+        for (auto v : scores) cout << v << " ";
+        cout << "\nFlags: ";
+        for (auto v : flags) cout << (v ? "true" : "false") << " ";
+        cout << "\nTags: ";
+        for (const auto& v : tags) cout << v << " ";
+        cout << "\n";
+    } catch (const std::exception& ex) {
+        cerr << "Error: " << ex.what() << std::endl;
         return 1;
     }
-    return 0;
 }
