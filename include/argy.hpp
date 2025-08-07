@@ -223,7 +223,7 @@ namespace Argy {
          */
         template<typename T>
         Parser& add(const char* shortName, const char* longName,
-                 const std::string& help = "",
+                 const std::string& help,
                  std::optional<T> defaultValue = std::nullopt) {
     
             if (Argy::startsWith(shortName, "--") && !Argy::startsWith(longName, "--")) {
@@ -266,7 +266,7 @@ namespace Argy {
         }
  
         // --- Explicit overloads for named arguments, help, and default value ---
-        Parser& addInt(const char* shortName, const char* longName, const std::string& help = "", std::optional<int> defaultValue = std::nullopt) {
+        Parser& addInt(const char* shortName, const char* longName, const std::string& help, std::optional<int> defaultValue = std::nullopt) {
             return add<int>({shortName, longName}, help, defaultValue);
         }
         Parser& addBool(const char* shortName, const char* longName, const std::string& help, bool defaultValue = false) {
@@ -281,19 +281,19 @@ namespace Argy {
             }
             return add<std::string>({shortName, longName}, help, defaultValue);
         }
-        Parser& addFloat(const char* shortName, const char* longName, const std::string& help = "", std::optional<float> defaultValue = std::nullopt) {
+        Parser& addFloat(const char* shortName, const char* longName, const std::string& help, std::optional<float> defaultValue = std::nullopt) {
             return add<float>({shortName, longName}, help, defaultValue);
         }
-        Parser& addInts(const char* shortName, const char* longName, const std::string& help = "", std::optional<std::vector<int>> defaultValue = std::nullopt) {
+        Parser& addInts(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<int>> defaultValue = std::nullopt) {
             return add<std::vector<int>>({shortName, longName}, help, defaultValue);
         }
-        Parser& addBools(const char* shortName, const char* longName, const std::string& help = "", std::optional<std::vector<bool>> defaultValue = std::nullopt) {
+        Parser& addBools(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<bool>> defaultValue = std::nullopt) {
             return add<std::vector<bool>>({shortName, longName}, help, defaultValue);
         }
-        Parser& addStrings(const char* shortName, const char* longName, const std::string& help = "", std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
+        Parser& addStrings(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
             return add<std::vector<std::string>>({shortName, longName}, help, defaultValue);
         }
-        Parser& addFloats(const char* shortName, const char* longName, const std::string& help = "", std::optional<std::vector<float>> defaultValue = std::nullopt) {
+        Parser& addFloats(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<float>> defaultValue = std::nullopt) {
             return add<std::vector<float>>({shortName, longName}, help, defaultValue);
         }
         /** @} */
@@ -330,6 +330,7 @@ namespace Argy {
                 std::string arg = argv[i];
                 if (arg == "--help" || arg == "-h") {
                     m_helpHandler(argv[0]);
+                    return;
                 }
             }
 
