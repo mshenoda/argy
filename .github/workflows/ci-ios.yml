@@ -1,4 +1,4 @@
-name: iOS CI
+name: iOS
 
 on:
   push:
@@ -20,11 +20,12 @@ jobs:
         run: |
           # Add your dependency installation commands here
           echo "No dependencies specified"
+      - name: Configure with CMake (Xcode generator)
+        run: |
+          cmake -S . -B build -G Xcode
       - name: Build
         run: |
-          # Replace with your actual build command, e.g.:
-          xcodebuild -project YourProject.xcodeproj -scheme YourScheme -sdk iphonesimulator
+          cmake --build build --config Release
       - name: Run tests
         run: |
-          # Replace with your test command, e.g.:
-          xcodebuild test -project YourProject.xcodeproj -scheme YourScheme -sdk iphonesimulator
+          ctest --test-dir build --output-on-failure
