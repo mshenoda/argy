@@ -152,7 +152,7 @@ int main(int argc, char* argv[]) {
         args.add<string>("-o","--output", "Output directory", "results/");
         args.add<int>("-n", "--num-classes", "Number of classes", 80);
         args.add<bool>("-s", "--save-vis", "Save visualization images");
-        args.add<Floats>("-m","--mean", "Mean normalization values", Floats{0.48f, 0.45f, 0.40f});
+        args.add<Floats>("-n","--norm", "normalization values", Floats{0.48f, 0.45f, 0.40f});
 
         // parse arguments
         args.parse();
@@ -200,7 +200,7 @@ int main(int argc, char* argv[]) {
         args.addString("-o","--output", "Output directory", "results/");
         args.addInt("-n", "--num-classes", "Number of classes", 80);
         args.addBool("-s", "--save-vis", "Save visualization images");
-        args.addFloats("-m","--mean", "Mean normalization values", Floats{0.48f, 0.45f, 0.40f});
+        args.addFloats("-n","--norm", "normalization values", Floats{0.48f, 0.45f, 0.40f});
 
         // parse arguments
         args.parse();
