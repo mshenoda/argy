@@ -32,6 +32,7 @@
 #include <type_traits>
 #include <optional>
 #include <functional>
+#include <algorithm>
 
 namespace Argy {
     // Type aliases for supported vector types
