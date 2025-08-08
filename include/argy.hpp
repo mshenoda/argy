@@ -170,6 +170,10 @@ namespace Argy {
             ArgType type = deduceArgType<T>();
             Value val = defaultValue ? Value(*defaultValue) : Value{};
             bool isRequired = !defaultValue.has_value();
+            // Boolean flags should never be required
+            if constexpr (std::is_same_v<T, bool>) {
+                isRequired = false;
+            }
 
             Argument arg{shortName, longName, help, isRequired, type, val, Value{}, isPositional};
             std::string key = isPositional ? longName : (longName.empty() ? shortName : longName);
@@ -205,6 +209,11 @@ namespace Argy {
             ArgType type = deduceArgType<T>();
             Value val = defaultValue ? Value(*defaultValue) : Value{};
             bool isRequired = !defaultValue.has_value();
+
+            if constexpr (std::is_same_v<T, bool>) {
+                isRequired = false;
+            }
+
             bool isPositional = longKey.empty();
             // Check for duplicates
             for (const auto& [k, v] : m_arguments) {
@@ -283,30 +292,30 @@ namespace Argy {
             return add<int>(name, help, defaultValue);
         }
         Parser& addFloat(const char* name, const char* help, std::optional<float> defaultValue = std::nullopt) { 
-            add<float>(name, help, defaultValue); return *this; 
+            return add<float>(name, help, defaultValue);
         }
-        Parser& addBool(const char* name, const char* help, bool defaultValue = false) { 
-            add<bool>(name, help, defaultValue); return *this; 
+        Parser& addBool(const std::string& name, const std::string& help, std::optional<bool> defaultValue = false) { 
+            return add<bool>(name, help, defaultValue); 
         }
         Parser& addStrings(const char* name, const char* help, std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
-             add<std::vector<std::string>>(name, help, defaultValue); return *this; 
+            return add<std::vector<std::string>>(name, help, defaultValue);
         }
         Parser& addInts(const char* name, const char* help, std::optional<std::vector<int>> defaultValue = std::nullopt) { 
-            add<std::vector<int>>(name, help, defaultValue); return *this; 
+            return add<std::vector<int>>(name, help, defaultValue); 
         }
         Parser& addFloats(const char* name, const char* help, std::optional<std::vector<float>> defaultValue = std::nullopt) { 
-            add<std::vector<float>>(name, help, defaultValue); return *this; 
+            return add<std::vector<float>>(name, help, defaultValue); 
         }
         Parser& addBools(const char* name, const char* help, std::optional<std::vector<bool>> defaultValue = std::nullopt) { 
-            add<std::vector<bool>>(name, help, defaultValue); return *this; 
+            return add<std::vector<bool>>(name, help, defaultValue); 
         }
  
         // --- Explicit overloads for named arguments, help, and default value ---
         Parser& addInt(const char* shortName, const char* longName, const std::string& help, std::optional<int> defaultValue = std::nullopt) {
             return add<int>({shortName, longName}, help, defaultValue);
         }
-        Parser& addBool(const char* shortName, const char* longName, const std::string& help, bool defaultValue = false) {
-            return add<bool>({shortName, longName}, help, defaultValue);
+        Parser& addBool(const char* shortName, const char* longName,  const std::string& help, std::optional<bool> defaultValue = false) {
+            return add<bool>(ArgName{shortName, longName}, help, defaultValue);
         }
         Parser& addString(const char* shortName, const char* longName, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) {
             std::string s(shortName), l(longName);
@@ -342,14 +351,30 @@ namespace Argy {
          * @name Overloads for ArgName
          * @{
          */
-        Parser& addString(const ArgName& argName, const std::string& help = "", std::optional<std::string> defaultValue = std::nullopt) { add<std::string>(argName, help, defaultValue); return *this; }
-        Parser& addInt(const ArgName& argName, const std::string& help = "", std::optional<int> defaultValue = std::nullopt) { add<int>(argName, help, defaultValue); return *this; }
-        Parser& addFloat(const ArgName& argName, const std::string& help = "", std::optional<float> defaultValue = std::nullopt) { add<float>(argName, help, defaultValue); return *this; }
-        Parser& addBool(const ArgName& argName, const std::string& help = "", std::optional<bool> defaultValue = std::nullopt) { add<bool>(argName, help, defaultValue); return *this; }
-        Parser& addStrings(const ArgName& argName, const std::string& help = "", std::optional<std::vector<std::string>> defaultValue = std::nullopt) { add<std::vector<std::string>>(argName, help, defaultValue); return *this; }
-        Parser& addInts(const ArgName& argName, const std::string& help = "", std::optional<std::vector<int>> defaultValue = std::nullopt) { add<std::vector<int>>(argName, help, defaultValue); return *this; }
-        Parser& addFloats(const ArgName& argName, const std::string& help = "", std::optional<std::vector<float>> defaultValue = std::nullopt) { add<std::vector<float>>(argName, help, defaultValue); return *this; }
-        Parser& addBools(const ArgName& argName, const std::string& help = "", std::optional<std::vector<bool>> defaultValue = std::nullopt) { add<std::vector<bool>>(argName, help, defaultValue); return *this; }
+        Parser& addString(const ArgName& argName, const std::string& help = "", std::optional<std::string> defaultValue = std::nullopt) { 
+            return add<std::string>(argName, help, defaultValue); 
+        }
+        Parser& addInt(const ArgName& argName, const std::string& help = "", std::optional<int> defaultValue = std::nullopt) { 
+            return add<int>(argName, help, defaultValue); 
+        }
+        Parser& addFloat(const ArgName& argName, const std::string& help = "", std::optional<float> defaultValue = std::nullopt) { 
+            return add<float>(argName, help, defaultValue); 
+        }
+        Parser& addBool(const ArgName& argName, const std::string& help = "", std::optional<bool> defaultValue = false) { 
+            return add<bool>(argName, help, defaultValue); 
+        }
+        Parser& addStrings(const ArgName& argName, const std::string& help = "", std::optional<std::vector<std::string>> defaultValue = std::nullopt) { 
+            return add<std::vector<std::string>>(argName, help, defaultValue); 
+        }
+        Parser& addInts(const ArgName& argName, const std::string& help = "", std::optional<std::vector<int>> defaultValue = std::nullopt) { 
+            return add<std::vector<int>>(argName, help, defaultValue);
+        }
+        Parser& addFloats(const ArgName& argName, const std::string& help = "", std::optional<std::vector<float>> defaultValue = std::nullopt) {
+            return add<std::vector<float>>(argName, help, defaultValue);
+        }
+        Parser& addBools(const ArgName& argName, const std::string& help = "", std::optional<std::vector<bool>> defaultValue = std::nullopt) { 
+            return add<std::vector<bool>>(argName, help, defaultValue); 
+        }
         /** @} */
 
         /**
@@ -608,8 +633,10 @@ namespace Argy {
                         std::cout << argument.help;
                     if (!std::holds_alternative<std::monostate>(argument.defaultValue))
                         std::cout << gray << " (default: " << toString(argument.defaultValue) << ")" << reset;
-                    if (argument.required)
-                        std::cout << " " << yellow << "(required)" << reset;
+                        // Show (required) for required arguments, including bools without default
+                        if (argument.required) {
+                            std::cout << " " << yellow << "(required)" << reset;
+                        }
                     std::cout << "\n";
                 }
             }
