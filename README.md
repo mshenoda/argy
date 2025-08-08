@@ -18,6 +18,13 @@
   <a href="https://github.com/mshenoda/argy/actions/workflows/ci-macos.yml">
     <img src="https://github.com/mshenoda/argy/actions/workflows/ci-macos.yml/badge.svg" alt="macOS Build"/>
   </a>
+
+  
+  <p align="center">
+    <a href="https://godbolt.org/z/8GGsnfoWq">
+      <img src="https://img.shields.io/badge/Godbolt-Demo-blue?logo=compilerexplorer" alt="Try Online"/>
+    </a>
+  </p>
 </p>
 
 ## Argy
@@ -28,6 +35,11 @@
 A modern, header-only C++17 argument parser that makes CLI development a breeze.
 
 *If you love Python's argparse or click, you'll feel right at home—argy brings that developer-friendly style to C++.*
+
+## Online Interactive Demo
+
+Try argy live in your browser using Compiler Explorer:
+[Open Interactive Demo on godbolt.org](https://godbolt.org/z/8GGsnfoWq)
 
 
 ## Features
