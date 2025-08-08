@@ -73,11 +73,11 @@ Define arguments and access them with the template API:
 using namespace std;
 using namespace Argy;
 Parser args(argc, argv);
-args.add<string>("image", "Path to input image");
-args.add<string>("-m", "--model", "Path to model weights");
-args.add<float>("-t", "--threshold", "Detection threshold", 0.5f);
-args.add<bool>("--visualize", "Show detection results", false);
-args.add<Ints>("--input-size", "Input size", Ints{640, 480});
+args.add<string>("image", "Path to input image");            // Positional argument 
+args.add<string>("-m", "--model", "Path to model weights");  // Named string argument, without default (required) 
+args.add<float>("-t", "--threshold", "Detection threshold", 0.5f); // Named float argument, with default
+args.add<bool>("--visualize", "Show detection results");   // Named bool argument
+args.add<Ints>("--input-size", "Input size", Ints{640, 480});     // Named vector<int> argument, with default
 ```
 
 ### Named Convenience Methods
@@ -86,9 +86,9 @@ Use named methods for clarity:
 using namespace std;
 using namespace Argy;
 Parser args(argc, argv);
-args.addString("image", "Path to input image");
-args.addInt("-n", "--num-classes", "Number of classes", 80);
-args.addBool("-s", "--save-vis", "Save visualization images", false);
+args.addString("image", "Path to input image");   // Positional argument 
+args.addInt("-n", "--num-classes", "Number of classes", 80);  // Named int argument, with default
+args.addBool("-s", "--save-vis", "Save visualization images"); // Named bool argument
 ```
 
 ### Chaining Methods
@@ -111,7 +111,7 @@ using namespace Argy;
 Parser args(argc, argv);
 args.addString("image", "Path to input image")
     .addInt("-n", "--num-classes", "Number of classes", 80)
-    .addBool("-s", "--save-vis", "Save visualization images", false);
+    .addBool("-s", "--save-vis", "Save visualization images");
 ```
 
 ### Parsing and Accessing Arguments
@@ -147,11 +147,11 @@ int main(int argc, char* argv[]) {
         args.add<string>("image", "Path to input image");
         args.add<string>("-m","--model", "Path to model");
         args.add<float>("-t","--threshold", "Detection threshold", 0.5f);
-        args.add<bool>("-v", "--visualize", "Visualize results", false);
+        args.add<bool>("-v", "--visualize", "Visualize results");
         args.add<Ints>("-i","--input-size", "Input size", Ints{640, 480});
         args.add<string>("-o","--output", "Output directory", "results/");
         args.add<int>("-n", "--num-classes", "Number of classes", 80);
-        args.add<bool>("-s", "--save-vis", "Save visualization images", false);
+        args.add<bool>("-s", "--save-vis", "Save visualization images");
         args.add<Floats>("-m","--mean", "Mean normalization values", Floats{0.48f, 0.45f, 0.40f});
 
         // parse arguments
@@ -195,11 +195,11 @@ int main(int argc, char* argv[]) {
         args.addString("image", "Path to input image");
         args.addString("-m","--model", "Path to model");
         args.addFloat("-t","--threshold", "Detection threshold", 0.5f);
-        args.addBool("-v", "--visualize", "Visualize results", false);
+        args.addBool("-v", "--visualize", "Visualize results");
         args.addInts("-i","--input-size", "Input size", Ints{640, 480});
         args.addString("-o","--output", "Output directory", "results/");
         args.addInt("-n", "--num-classes", "Number of classes", 80);
-        args.addBool("-s", "--save-vis", "Save visualization images", false);
+        args.addBool("-s", "--save-vis", "Save visualization images");
         args.addFloats("-m","--mean", "Mean normalization values", Floats{0.48f, 0.45f, 0.40f});
 
         // parse arguments
