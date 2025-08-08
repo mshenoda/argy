@@ -148,6 +148,9 @@ namespace Argy {
                 isPositional = false;
             } else {
                 longName = cleanName;
+                if(defaultValue.has_value()) {
+                    throw std::invalid_argument("Positional arguments cannot have default values");
+                }
             }
 
             // Prevent overriding help flags
@@ -272,7 +275,7 @@ namespace Argy {
          * @name Convenience methods for adding arguments of specific types
          * @{
          */
-        Parser& addString(const std::string& name, const std::string& help="", std::optional<std::string> defaultValue = std::nullopt) { 
+        Parser& addString(const std::string& name, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) { 
             return add<std::string>(name, help, defaultValue); 
         }
         Parser& addInt(const char* name, const char* help, std::optional<int> defaultValue = std::nullopt) { 
