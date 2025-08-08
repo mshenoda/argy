@@ -259,3 +259,16 @@ Options:
 ## Contributing
 Contributions are welcome! Please open issues or pull requests for bug fixes, features, or improvements.
 
+## Citation
+
+If you use this project in your research, please cite it as follows:
+
+```bibtex
+@misc{mshenoda_argy,
+  author = {Michael Shenoda},
+  title = {Argy: Effortless Command-Line Parsing for Modern C++},
+  year = {2025},
+  url = {https://github.com/mshenoda/argy},
+  note = {Author website: https://mshenoda.com}
+}
+```
