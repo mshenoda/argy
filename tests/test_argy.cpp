@@ -322,3 +322,91 @@ TEST_CASE("Positional and optional mix with all API variants") {
     CHECK(names[0] == "A");
     CHECK(names[1] == "B");
 }
+
+TEST_CASE("has() method: argument presence and absence") {
+    const char* argv[] = {"prog", "foo.txt", "42", "--flag"};
+    int argc = 4;
+    Parser parser(argc, const_cast<char**>(argv));
+    parser.addString("filename", "Input file");
+    parser.addInt("number", "A number");
+    parser.addBool("--flag", "A flag", false);
+    parser.parse();
+    CHECK(parser.has("filename"));
+    CHECK(parser.has("number"));
+    CHECK(parser.has("flag"));
+    CHECK(!parser.has("missing"));
+}
+
+TEST_CASE("addBools/getBools: vector<bool> arguments") {
+    const char* argv[] = {"prog", "--flags", "1", "0", "1", "0"};
+    int argc = 6;
+    Parser parser(argc, const_cast<char**>(argv));
+    parser.addBools("--flags", "List of flags");
+    parser.parse();
+    auto flags = parser.getBools("flags");
+    CHECK(flags.size() == 4);
+    CHECK(flags[0] == true);
+    CHECK(flags[1] == false);
+    CHECK(flags[2] == true);
+    CHECK(flags[3] == false);
+}
+
+TEST_CASE("Duplicate argument names throws") {
+    Parser parser(0, nullptr);
+    parser.addString("filename", "Input file");
+    CHECK_THROWS_AS(parser.addString("filename", "Duplicate"), std::runtime_error);
+}
+
+TEST_CASE("Reserved names throws") {
+    Parser parser(0, nullptr);
+    CHECK_THROWS_AS(parser.addString("--help", "Help"), std::runtime_error);
+    CHECK_THROWS_AS(parser.addString("-h", "Help"), std::runtime_error);
+}
+
+TEST_CASE("Malformed argument names throws") {
+    Parser parser(0, nullptr);
+    CHECK_THROWS_AS(parser.addInt("c", "count", "Missing dashes for optional", 1), std::invalid_argument);
+}
+
+TEST_CASE("Argument with only short name") {
+    const char* argv[] = {"prog", "-f", "input.txt"};
+    int argc = 3;
+    Parser parser(argc, const_cast<char**>(argv));
+    parser.addString("-f", "Input file");
+    parser.parse();
+    CHECK(parser.getString("f") == "input.txt");
+}
+
+TEST_CASE("Empty vector default value") {
+    const char* argv[] = {"prog"};
+    int argc = 1;
+    Parser parser(argc, const_cast<char**>(argv));
+    parser.addStrings("--names", "List of names", std::vector<std::string>{});
+    parser.parse();
+    auto names = parser.getStrings("names");
+    CHECK(names.empty());
+}
+
+TEST_CASE("Help handler that throws") {
+    const char* argv[] = {"prog", "--help"};
+    int argc = 2;
+    Parser parser(argc, const_cast<char**>(argv));
+    parser.setHelpHandler([](std::string){ throw std::runtime_error("Help thrown"); });
+    parser.addString("filename", "Input file");
+    CHECK_THROWS_AS(parser.parse(), std::runtime_error);
+}
+
+TEST_CASE("Parsing with no arguments at all") {
+    const char* argv[] = {"prog"};
+    int argc = 1;
+    Parser parser(argc, const_cast<char**>(argv));
+    parser.addString("filename", "Input file");
+    CHECK_THROWS_AS(parser.parse() , std::runtime_error);
+}
+
+TEST_CASE("Positional argument with default value throws") {
+    const char* argv[] = {"prog"};
+    int argc = 1;
+    Parser parser(argc, const_cast<char**>(argv));
+    CHECK_THROWS_AS(parser.addString("filename", "Input file", "default.txt"), std::invalid_argument);
+}

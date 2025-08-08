@@ -151,7 +151,7 @@ namespace Argy {
             }
 
             // Prevent overriding help flags
-            if (longName == "--help" || shortName == "-h") {
+            if (longName == "help" || shortName == "h") {
                 throw std::runtime_error("Cannot redefine built-in --help/-h argument");
             }
 
@@ -310,6 +310,9 @@ namespace Argy {
                 std::string h = l;
                 std::string d = help;
                 return add<std::string>(s, l, d);
+            }
+            else if (!Argy::startsWith(s, "-") && !Argy::startsWith(l, "--") && !help.empty()) { // positional with default not allowed
+                throw std::invalid_argument("Positional arguments cannot have default values");
             }
             return add<std::string>({shortName, longName}, help, defaultValue);
         }
