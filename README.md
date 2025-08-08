@@ -69,7 +69,7 @@ There are several ways to use argy in your project:
 ### Template Methods
 Define arguments and access them with the template API:
 ```cpp
-#include <argy.hpp>
+#include "argy.hpp"
 using namespace std;
 using namespace Argy;
 Parser args(argc, argv);
