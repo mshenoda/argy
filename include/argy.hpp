@@ -126,29 +126,52 @@ namespace Argy {
         ) {
             std::string cleanName = name;
             bool isPositional = true;
+            std::string shortName, longName;
+
+            // Enforce naming conventions BEFORE stripping dashes
+            if (startsWith(cleanName, "--")) {
+                if (cleanName.size() <= 2)
+                    throw std::invalid_argument("longName must not be empty after --");
+            }
+            else if (startsWith(cleanName, "-")) {
+                if (cleanName.size() <= 1)
+                    throw std::invalid_argument("shortName must not be empty after -");
+            }
 
             // Always strip leading dashes for single-name methods
             if (startsWith(cleanName, "--")) {
-                cleanName = cleanName.substr(2);
+                longName = cleanName.substr(2);
                 isPositional = false;
             }
             else if (startsWith(cleanName, "-")) {
-                cleanName = cleanName.substr(1);
+                shortName = cleanName.substr(1);
                 isPositional = false;
+            } else {
+                longName = cleanName;
             }
 
             // Prevent overriding help flags
-            if (cleanName == "help" || cleanName == "h") {
+            if (longName == "--help" || shortName == "-h") {
                 throw std::runtime_error("Cannot redefine built-in --help/-h argument");
+            }
+
+            // Check for duplicates
+            for (const auto& [k, v] : m_arguments) {
+                if (!longName.empty() && v.longName == longName)
+                    throw std::runtime_error("Duplicate longName: " + longName);
+                if (!shortName.empty() && v.shortName == shortName)
+                    throw std::runtime_error("Duplicate shortName: " + shortName);
             }
 
             ArgType type = deduceArgType<T>();
             Value val = defaultValue ? Value(*defaultValue) : Value{};
             bool isRequired = !defaultValue.has_value();
 
-            m_arguments[cleanName] = { cleanName, help, isRequired, type, val, isPositional };
+            Argument arg{shortName, longName, help, isRequired, type, val, Value{}, isPositional};
+            std::string key = isPositional ? longName : (longName.empty() ? shortName : longName);
+            m_arguments[key] = arg;
             if (isPositional)
-                m_positionalOrder.push_back(cleanName);
+                m_positionalOrder.push_back(key);
             return *this;
         }
 
@@ -164,24 +187,33 @@ namespace Argy {
         Parser& add(const ArgName& argName,
             const std::string& help = "",
             std::optional<T> defaultValue = std::nullopt) {
-
-            if (!argName.shortName.empty()) {
-                std::string shortKey = argName.shortName;
-                if (startsWith(shortKey, "-")) shortKey = shortKey.substr(1);
-                std::string longKey = argName.longName;
-                if (startsWith(longKey, "--")) longKey = longKey.substr(2);
-                // Register both short and long names
-                if (m_shortToLong.count(shortKey)) {
-                    throw std::runtime_error("Short name already registered: -" + shortKey);
-                }
-                add<T>("--" + longKey, help, defaultValue);
-                m_shortToLong[shortKey] = longKey;
-            } else {
-                std::string cleanLongName = argName.longName;
-                if (startsWith(cleanLongName, "--")) cleanLongName = cleanLongName.substr(2);
-                else if (startsWith(cleanLongName, "-")) cleanLongName = cleanLongName.substr(1);
-                add<T>(cleanLongName, help, defaultValue);
+            std::string shortKey = argName.shortName;
+            std::string longKey = argName.longName;
+            // Enforce naming conventions BEFORE stripping dashes
+            if (!shortKey.empty() && !startsWith(shortKey, "-"))
+                throw std::invalid_argument("shortName must start with -");
+            if (!longKey.empty() && !startsWith(longKey, "--"))
+                throw std::invalid_argument("longName must start with --");
+            // Strip dashes for storage
+            if (startsWith(shortKey, "-")) shortKey = shortKey.substr(1);
+            if (startsWith(longKey, "--")) longKey = longKey.substr(2);
+            else if (startsWith(longKey, "-")) longKey = longKey.substr(1);
+            ArgType type = deduceArgType<T>();
+            Value val = defaultValue ? Value(*defaultValue) : Value{};
+            bool isRequired = !defaultValue.has_value();
+            bool isPositional = longKey.empty();
+            // Check for duplicates
+            for (const auto& [k, v] : m_arguments) {
+                if (!longKey.empty() && v.longName == longKey)
+                    throw std::runtime_error("Duplicate longName: " + longKey);
+                if (!shortKey.empty() && v.shortName == shortKey)
+                    throw std::runtime_error("Duplicate shortName: " + shortKey);
             }
+            Argument arg{shortKey, longKey, help, isRequired, type, val, Value{}, isPositional};
+            std::string key = isPositional ? shortKey : longKey;
+            m_arguments[key] = arg;
+            if (isPositional)
+                m_positionalOrder.push_back(key);
             return *this;
         }
 
@@ -322,7 +354,6 @@ namespace Argy {
          * @throws std::runtime_error on unknown or missing required arguments.
          */
         void parse() {
-
             int argc = m_argc;
             char** argv = m_argv;
             // Auto-handle help flags
@@ -340,97 +371,80 @@ namespace Argy {
             // Parse loop
             for (int i = 1; i < argc; ++i) {
                 std::string token = argv[i];
-
+                std::string key;
                 if (startsWith(token, "--")) {
-                    currentKey = token.substr(2);
-                    ensureKnown(currentKey);
-                    if (isListType(m_arguments[currentKey].type)) {
-                        m_parsedLists[currentKey] = {};
+                    std::string normKey = token.substr(2);
+                    // Find by longName (with or without dashes)
+                    auto it = std::find_if(m_arguments.begin(), m_arguments.end(), [&](const auto& pair) {
+                        return pair.second.longName == "--" + normKey || pair.second.longName == normKey;
+                    });
+                    if (it == m_arguments.end()) throw std::runtime_error("Unknown argument: --" + normKey);
+                    currentKey = it->first;
+                    Argument& arg = it->second;
+                    if (isListType(arg.type)) {
+                        arg.parsedValue = std::vector<std::string>{};
                         continue;
                     }
-                    if (m_arguments[currentKey].type == ArgType::Bool) {
-                        m_parsed[currentKey] = "true";
+                    if (arg.type == ArgType::Bool) {
+                        arg.parsedValue = true;
                         currentKey.clear();
                     }
-                }
-                else if (startsWith(token, "-") && token.size() > 1 && m_shortToLong.count(token.substr(1))) {
-                    // Multi-character short option
-                    std::string shortKey = token.substr(1);
-                    auto it = m_shortToLong.find(shortKey);
-                    if (it == m_shortToLong.end()) {
-                        throw std::runtime_error("Unknown short argument: -" + shortKey);
+                } else if (startsWith(token, "-") && token.size() > 1) {
+                    std::string normKey = token.substr(1);
+                    // Find by shortName (with or without dash)
+                    auto it = std::find_if(m_arguments.begin(), m_arguments.end(), [&](const auto& pair) {
+                        return pair.second.shortName == normKey;
+                    });
+                    if (it == m_arguments.end()) throw std::runtime_error("Unknown short argument: -" + normKey);
+                    currentKey = it->first;
+                    Argument& arg = it->second;
+                    if (isListType(arg.type)) {
+                        arg.parsedValue = std::vector<std::string>{};
+                        continue;
                     }
-                    currentKey = it->second;
-                    ensureKnown(currentKey);
-                    if (m_arguments[currentKey].type == ArgType::Bool) {
-                        m_parsed[currentKey] = "true";
+                    if (arg.type == ArgType::Bool) {
+                        arg.parsedValue = true;
                         currentKey.clear();
                     }
-                }
-                else if (!currentKey.empty()) {
-                    if (isListType(m_arguments[currentKey].type)) {
-                        m_parsedLists[currentKey].push_back(token);
-                    }
-                    else {
-                        m_parsed[currentKey] = token;
+                } else if (!currentKey.empty()) {
+                    Argument& arg = m_arguments.at(currentKey);
+                    if (isListType(arg.type)) {
+                        if (std::holds_alternative<std::vector<std::string>>(arg.parsedValue)) {
+                            std::get<std::vector<std::string>>(arg.parsedValue).push_back(token);
+                        }
+                    } else {
+                        arg.parsedValue = token;
                         currentKey.clear();
                     }
-                }
-                else {
+                } else {
                     // Positional argument
                     if (positionalIndex >= m_positionalOrder.size())
                         throw std::runtime_error("Unexpected positional argument: " + token);
                     std::string name = m_positionalOrder[positionalIndex++];
-                    m_parsed[name] = token;
+                    Argument& arg = m_arguments.at(name);
+                    arg.parsedValue = token;
                 }
             }
 
             // Validate required and set defaults
-            for (const auto& [key, argument] : m_arguments) {
-                if (!isListType(argument.type) && !m_parsed.count(key)) {
+            for (auto& [key, argument] : m_arguments) {
+                if (!isListType(argument.type) && std::holds_alternative<std::monostate>(argument.parsedValue)) {
                     if (argument.required)
-                        throw std::runtime_error("Missing required argument: " + argument.name);
-                    m_parsed[key] = toString(argument.defaultValue);
-                }
-                else if (isListType(argument.type) && !m_parsedLists.count(key)) {
-                    if (argument.required) {
-                        throw std::runtime_error("Missing required list argument: " + argument.name);
-                    }
-                    // Set default for list arguments if provided
-                    if (!std::holds_alternative<std::monostate>(argument.defaultValue)) {
-                        switch (argument.type) {
-                            case ArgType::StringList:
-                                m_parsedLists[key] = std::get<std::vector<std::string>>(argument.defaultValue);
-                                break;
-                            case ArgType::IntList: {
-                                const auto& vec = std::get<std::vector<int>>(argument.defaultValue);
-                                std::vector<std::string> strVec;
-                                for (const auto& v : vec) strVec.push_back(std::to_string(v));
-                                m_parsedLists[key] = std::move(strVec);
-                                break;
-                            }
-                            case ArgType::FloatList: {
-                                const auto& vec = std::get<std::vector<float>>(argument.defaultValue);
-                                std::vector<std::string> strVec;
-                                for (const auto& v : vec) strVec.push_back(std::to_string(v));
-                                m_parsedLists[key] = std::move(strVec);
-                                break;
-                            }
-                            case ArgType::BoolList: {
-                                const auto& vec = std::get<std::vector<bool>>(argument.defaultValue);
-                                std::vector<std::string> strVec;
-                                for (const auto& v : vec) strVec.push_back(v ? "true" : "false");
-                                m_parsedLists[key] = std::move(strVec);
-                                break;
-                            }
-                            default:
-                                break;
+                        throw std::runtime_error("Missing required argument: " + argument.longName);
+                    argument.parsedValue = argument.defaultValue;
+                } else if (isListType(argument.type) && std::holds_alternative<std::monostate>(argument.parsedValue)) {
+                    if (argument.required)
+                        throw std::runtime_error("Missing required list argument: " + argument.longName);
+                    argument.parsedValue = argument.defaultValue;
+                } else {
+                    if (!isListType(argument.type) && !std::holds_alternative<std::monostate>(argument.parsedValue)) {
+                        validateType(toString(argument.parsedValue), argument.type);
+                    } else if (isListType(argument.type) && std::holds_alternative<std::vector<std::string>>(argument.parsedValue)) {
+                        const auto& vec = std::get<std::vector<std::string>>(argument.parsedValue);
+                        for (const auto& v : vec) {
+                            validateType(v, argument.type);
                         }
                     }
-                }
-                else {
-                    if (!isListType(argument.type))
-                        validateType(m_parsed[key], argument.type);
                 }
             }
         }
@@ -444,17 +458,45 @@ namespace Argy {
          */
         template<typename T>
         T get(const std::string& name) const {
-            if constexpr (is_vector<T>::value) {
-                auto it = m_parsedLists.find(name);
-                if (it == m_parsedLists.end())
-                    throw std::runtime_error("Argument list not found: " + name);
-                return fromStringVector<typename T::value_type>(it->second);
+            // Normalize input name: strip leading dashes
+            std::string normName = name;
+            if (startsWith(normName, "--")) normName = normName.substr(2);
+            else if (startsWith(normName, "-")) normName = normName.substr(1);
+            // Try direct key
+            auto it = m_arguments.find(name);
+            if (it == m_arguments.end()) {
+                // Try normalized longName or shortName
+                it = std::find_if(m_arguments.begin(), m_arguments.end(), [&](const auto& pair) {
+                    return pair.second.longName == "--" + normName || pair.second.longName == normName ||
+                           pair.second.shortName == "-" + normName || pair.second.shortName == normName;
+                });
+                if (it == m_arguments.end()) throw std::runtime_error("Argument not found: " + name);
             }
-            else {
-                auto it = m_parsed.find(name);
-                if (it == m_parsed.end())
+            const Argument& arg = it->second;
+            if constexpr (is_vector<T>::value) {
+                if (std::holds_alternative<std::vector<std::string>>(arg.parsedValue)) {
+                    return fromStringVector<typename T::value_type>(std::get<std::vector<std::string>>(arg.parsedValue));
+                } else if (!std::holds_alternative<std::monostate>(arg.defaultValue)) {
+                    // Use default value if available
+                    if constexpr (std::is_same_v<T, std::vector<int>>) {
+                        return std::get<std::vector<int>>(arg.defaultValue);
+                    } else if constexpr (std::is_same_v<T, std::vector<float>>) {
+                        return std::get<std::vector<float>>(arg.defaultValue);
+                    } else if constexpr (std::is_same_v<T, std::vector<bool>>) {
+                        return std::get<std::vector<bool>>(arg.defaultValue);
+                    } else if constexpr (std::is_same_v<T, std::vector<std::string>>) {
+                        return std::get<std::vector<std::string>>(arg.defaultValue);
+                    }
+                }
+                throw std::runtime_error("Argument list not found: " + name);
+            } else {
+                if (std::holds_alternative<std::monostate>(arg.parsedValue)) {
+                    if (!std::holds_alternative<std::monostate>(arg.defaultValue)) {
+                        return fromString<T>(toString(arg.defaultValue));
+                    }
                     throw std::runtime_error("Argument not found: " + name);
-                return fromString<T>(it->second);
+                }
+                return fromString<T>(toString(arg.parsedValue));
             }
         }
 
@@ -464,7 +506,15 @@ namespace Argy {
          * @return True if the argument is present, false otherwise.
          */
         bool has(const std::string& name) const {
-            return m_parsed.count(name) || m_parsedLists.count(name);
+            auto it = m_arguments.find(name);
+            if (it == m_arguments.end()) {
+                it = std::find_if(m_arguments.begin(), m_arguments.end(), [&](const auto& pair) {
+                    return pair.second.longName == name || pair.second.shortName == name;
+                });
+                if (it == m_arguments.end()) return false;
+            }
+            const Argument& arg = it->second;
+            return !std::holds_alternative<std::monostate>(arg.parsedValue);
         }
 
         /**
@@ -508,7 +558,7 @@ namespace Argy {
                 std::cout << bold << "Positional:" << reset << "\n";
                 for (const auto& key : m_positionalOrder) {
                     const auto& argument = m_arguments.at(key);
-                    std::cout << "  " << cyan << argument.name << reset;
+                    std::cout << "  " << cyan << argument.longName << reset;
                     if (!argument.help.empty())
                         std::cout << "\t" << argument.help;
                     if (!std::holds_alternative<std::monostate>(argument.defaultValue))
@@ -525,15 +575,11 @@ namespace Argy {
             std::vector<std::string> optStrings;
             for (const auto& [key, argument] : m_arguments) {
                 if (!argument.positional) {
-                    std::string shortName;
-                    for (const auto& [s, l] : m_shortToLong) {
-                        if (l == key) { shortName = s; break; }
-                    }
                     std::string opt;
-                    if (!shortName.empty())
-                        opt = std::string("-") + shortName + ", --" + argument.name;
+                    if (!argument.shortName.empty())
+                        opt = "-" + argument.shortName + ", --" + argument.longName;
                     else
-                        opt = "    --" + argument.name; // 4 spaces for alignment
+                        opt = "    --" + argument.longName; // 4 spaces for alignment
                     if (argument.type != ArgType::Bool)
                         opt += " <value>";
                     if (opt.size() > maxOptLen) maxOptLen = opt.size();
@@ -602,19 +648,18 @@ namespace Argy {
          * @brief Represents one command-line argument and its metadata.
          */
         struct Argument {
-            std::string name;       ///< Argument name without dashes.
+            std::string shortName;   
+            std::string longName;   
             std::string help;       ///< Help/description string.
             bool required{ true };  ///< True if argument must be provided by the user.
             ArgType type{ ArgType::String }; ///< Argument type.
             Value defaultValue;     ///< Default value if any.
+            Value parsedValue;     ///< Parsed value if any.
             bool positional{ false }; ///< True if this is a positional argument.
         };
 
         std::unordered_map<std::string, Argument> m_arguments; ///< Map of all arguments.
-        std::unordered_map<std::string, std::string> m_parsed; ///< Parsed single-value arguments.
-        std::unordered_map<std::string, std::vector<std::string>> m_parsedLists; ///< Parsed list arguments.
         std::vector<std::string> m_positionalOrder; ///< Order of positional arguments.
-        std::unordered_map<std::string, std::string> m_shortToLong; ///< Map short names (like "c") to full names (like "count").
         std::function<void(std::string)> m_helpHandler; ///< Function to handle help requests.
         int m_argc; ///< Argument count from main().
         char** m_argv; ///< Argument vector from main().

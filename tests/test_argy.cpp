@@ -12,7 +12,7 @@ TEST_CASE("Template: Basic positional and optional arguments") {
     Parser parser(argc, const_cast<char**>(argv));
     parser.add<std::string>("filename", "Input file");
     parser.add<int>("number", "A number");
-    parser.add<int>("-c", "count", "Count", 10);
+    parser.add<int>("-c", "--count", "Count", 10);
     parser.parse();
     CHECK(parser.get<std::string>("filename") == "input.txt");
     CHECK(parser.get<int>("number") == 42);
@@ -24,7 +24,7 @@ TEST_CASE("Template: Default values and required arguments") {
     int argc = 2;
     Parser parser(argc, const_cast<char**>(argv));
     parser.add<std::string>("filename", "Input file");
-    parser.add<int>("-c", "count", "Count", 99);
+    parser.add<int>("-c", "--count", "Count", 99);
     parser.parse();
     CHECK(parser.get<std::string>("filename") == "foo.txt");
     CHECK(parser.get<int>("count") == 99);
@@ -35,7 +35,7 @@ TEST_CASE("Template: Bool arguments") {
     int argc = 3;
     Parser parser(argc, const_cast<char**>(argv));
     parser.add<std::string>("filename", "Input file");
-    parser.add<bool>("-f", "flag", "A flag", false);
+    parser.add<bool>("-f", "--flag", "A flag", false);
     parser.parse();
     CHECK(parser.get<bool>("flag") == true);
 }
@@ -44,7 +44,7 @@ TEST_CASE("Template: Vector arguments") {
     const char* argv[] = {"prog", "--names", "Alice", "Bob", "Charlie"};
     int argc = 5;
     Parser parser(argc, const_cast<char**>(argv));
-    parser.add<std::vector<std::string>>("-n", "names", "List of names");
+    parser.add<std::vector<std::string>>("-n", "--names", "List of names");
     parser.parse();
     auto names = parser.get<std::vector<std::string>>("names");
     CHECK(names.size() == 3);
@@ -59,7 +59,7 @@ TEST_CASE("Basic positional and optional arguments") {
     Parser parser(argc, const_cast<char**>(argv));
     parser.addString("filename", "Input file");
     parser.addInt("number", "A number");
-    parser.addInt("-c", "count", "Count", 10);
+    parser.addInt("-c", "--count", "Count", 10);
     parser.parse();
     CHECK(parser.getString("filename") == "input.txt");
     CHECK(parser.getInt("number") == 42);
@@ -71,7 +71,7 @@ TEST_CASE("Default values and required arguments") {
     int argc = 2;
     Parser parser(argc, const_cast<char**>(argv));
     parser.addString("filename", "Input file");
-    parser.addInt("-c", "count", "Count", 99);
+    parser.addInt("-c", "--count", "Count", 99);
     parser.parse();
     CHECK(parser.getString("filename") == "foo.txt");
     CHECK(parser.getInt("count") == 99);
@@ -82,7 +82,7 @@ TEST_CASE("Bool arguments") {
     int argc = 3;
     Parser parser(argc, const_cast<char**>(argv));
     parser.addString("filename", "Input file");
-    parser.addBool("-f", "flag", "A flag", false);
+    parser.addBool("-f", "--flag", "A flag", false);
     parser.parse();
     CHECK(parser.getBool("flag") == true);
 }
@@ -91,7 +91,7 @@ TEST_CASE("Vector arguments") {
     const char* argv[] = {"prog", "--names", "Alice", "Bob", "Charlie"};
     int argc = 5;
     Parser parser(argc, const_cast<char**>(argv));
-    parser.addStrings("-n", "names", "List of names");
+    parser.addStrings("-n", "--names", "List of names");
     parser.parse();
     auto names = parser.getStrings("names");
     CHECK(names.size() == 3);
@@ -274,4 +274,51 @@ TEST_CASE("Long name only arguments with default values and override") {
         CHECK(values[1] == doctest::Approx(2.2));
         CHECK(values[2] == doctest::Approx(3.3));
     }
+}
+
+TEST_CASE("ArgName API for short and long names") {
+    const char* argv[] = {"prog", "--filename", "input.txt", "--number", "42", "--count", "7"};
+    int argc = 7;
+    ArgName nameArg{"-f", "--filename"};
+    ArgName numArg{"-n", "--number"};
+    ArgName countArg{"-c", "--count"};
+    Parser parser(argc, const_cast<char**>(argv));
+    parser.addString(nameArg, "Input file");
+    parser.addInt(numArg, "A number");
+    parser.addInt(countArg, "Count", 10);
+    parser.parse();
+    CHECK(parser.getString("filename") == "input.txt");
+    CHECK(parser.getInt("number") == 42);
+    CHECK(parser.getInt("count") == 7);
+}
+
+TEST_CASE("Initializer list API for short and long names") {
+    const char* argv[] = {"prog", "--filename", "input.txt", "--number", "42", "--count", "7"};
+    int argc = 7;
+    Parser parser(argc, const_cast<char**>(argv));
+    parser.add<std::string>({"-f", "--filename"}, "Input file");
+    parser.add<int>({"-n", "--number"}, "A number");
+    parser.add<int>({"-c", "--count"}, "Count", 10);
+    parser.parse();
+    CHECK(parser.get<std::string>("filename") == "input.txt");
+    CHECK(parser.get<int>("number") == 42);
+    CHECK(parser.get<int>("count") == 7);
+}
+
+TEST_CASE("Positional and optional mix with all API variants") {
+    const char* argv[] = {"prog", "file.txt", "123", "--flag", "--names", "A", "B"};
+    int argc = 7;
+    Parser parser(argc, const_cast<char**>(argv));
+    parser.addString("filename", "Input file");
+    parser.addInt("number", "A number");
+    parser.addBool("--flag", "A flag", false);
+    parser.addStrings("--names", "Names");
+    parser.parse();
+    CHECK(parser.getString("filename") == "file.txt");
+    CHECK(parser.getInt("number") == 123);
+    CHECK(parser.getBool("flag") == true);
+    auto names = parser.getStrings("names");
+    CHECK(names.size() == 2);
+    CHECK(names[0] == "A");
+    CHECK(names[1] == "B");
 }
