@@ -66,10 +66,12 @@ namespace Argy {
          * @brief Constructs a Parser and sets the default help handler.
          * @param argc Argument count from main().
          * @param argv Argument vector from main().
+         * @param useColors Whether to use ANSI color codes in help output (default: true).
          *
          * The default help handler prints help and exits. You can override it with setHelpHandler().
          */
-        Parser(int argc, char* argv[]) : m_argc(argc), m_argv(argv) {
+        Parser(int argc, char* argv[], bool useColors = true)
+            : m_argc(argc), m_argv(argv), m_useColors(useColors) {
             m_helpHandler = [this](std::string name) {
                 printHelp(name);
                 std::exit(0);
@@ -578,18 +580,18 @@ namespace Argy {
          */
         void printHelp(const std::string& programName) const {
             // ANSI color codes
-            const char* bold = "\033[1m";
-            const char* cyan = "\033[36m";
-            const char* yellow = "\033[33m";
-            const char* reset = "\033[0m";
-            const char* gray = "\033[90m";
-            const char* green = "\033[32m";
+            const char* bold = m_useColors ? "\033[1m" : "";
+            const char* cyan = m_useColors ? "\033[36m" : "";
+            const char* yellow = m_useColors ? "\033[33m" : "";
+            const char* reset = m_useColors ? "\033[0m" : "";
+            const char* gray = m_useColors ? "\033[90m" : "";
+            const char* green = m_useColors ? "\033[32m" : "";
 
             // Usage line
-                std::cout << bold << "Usage: " << reset << programName;
-                for (const auto& positional : m_positionalOrder)
-                    std::cout << " " << cyan << "<" << positional << ">" << reset;
-                std::cout << " " << green << "[options]" << reset << "\n\n";
+            std::cout << bold << "Usage: " << reset << programName;
+            for (const auto& positional : m_positionalOrder)
+                std::cout << " " << cyan << "<" << positional << ">" << reset;
+            std::cout << " " << green << "[options]" << reset << "\n\n";
 
             // Section: Positional arguments
             if (!m_positionalOrder.empty()) {
@@ -667,7 +669,8 @@ namespace Argy {
             std::cout << "  " << green << helpFlag << reset << std::string(helpPad, ' ') << std::string(valueColWidth+1, ' ') << "Show this help message\n";
         }
 
-    private:  
+    private:
+        bool m_useColors = true;
         
         /**
          * @brief Variant to hold any supported argument value type.
