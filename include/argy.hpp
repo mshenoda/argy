@@ -61,18 +61,6 @@ namespace Argy {
      * list arguments, shorthand options, and automatic help message generation.
      */
     class Parser {
-        // checks if a string starts with a given prefix
-        static bool startsWith(const std::string& str, const std::string& prefix) {
-            return str.size() >= prefix.size() && str.compare(0, prefix.size(), prefix) == 0;
-        }
-        // normalize argument name (strip leading dashes)
-        static std::string normalizeName(const std::string& name) {
-            if (startsWith(name, "--")) return name.substr(2);
-            if (startsWith(name, "-")) return name.substr(1);
-            return name;
-        }
-        // Lookup map: maps all forms to canonical key
-        std::unordered_map<std::string, std::string> m_nameLookup;
     public:
         /**
          * @brief Constructs a Parser and sets the default help handler.
@@ -684,6 +672,7 @@ namespace Argy {
         }
 
     private:  
+        
         /**
          * @brief Variant to hold any supported argument value type.
          *
@@ -730,11 +719,24 @@ namespace Argy {
             bool positional{ false }; ///< True if this is a positional argument.
         };
 
+        // Lookup map: maps all forms to canonical key
+        std::unordered_map<std::string, std::string> m_nameLookup; ///< Maps argument names to canonical keys.
         std::unordered_map<std::string, Argument> m_arguments; ///< Map of all arguments.
         std::vector<std::string> m_positionalOrder; ///< Order of positional arguments.
         std::function<void(std::string)> m_helpHandler; ///< Function to handle help requests.
         int m_argc; ///< Argument count from main().
         char** m_argv; ///< Argument vector from main().
+
+        // checks if a string starts with a given prefix
+        static bool startsWith(const std::string& str, const std::string& prefix) {
+            return str.size() >= prefix.size() && str.compare(0, prefix.size(), prefix) == 0;
+        }
+        // normalize argument name (strip leading dashes)
+        static std::string normalizeName(const std::string& name) {
+            if (startsWith(name, "--")) return name.substr(2);
+            if (startsWith(name, "-")) return name.substr(1);
+            return name;
+        }
 
         /**
          * @brief Throws if unknown or positional argument used as option.
