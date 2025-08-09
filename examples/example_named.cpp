@@ -23,16 +23,16 @@ int main(int argc, char* argv[]) {
         args.addFloat("-r", "--ratio", "Ratio value", 0.5f);
 
         // Vector<int> argument
-        args.addInts("-i", "--ids", "List of IDs", std::vector<int>{1, 2, 3});
+        args.addInts("-i", "--ids", "List of IDs", Ints{1, 2, 3});
 
         // Vector<float> argument
-        args.addFloats("-s", "--scores", "List of scores", std::vector<float>{0.1f, 0.2f, 0.3f});
+        args.addFloats("-s", "--scores", "List of scores", Floats{0.1f, 0.2f, 0.3f});
 
         // Vector<bool> argument
-        args.addBools("-f", "--flags", "List of flags", std::vector<bool>{true, false, true});
+        args.addBools("-f", "--flags", "List of flags", Bools{true, false, true});
 
         // Vector<string> argument
-        args.addStrings("-t", "--tags", "List of tags", std::vector<std::string>{"alpha", "beta"});
+        args.addStrings("-t", "--tags", "List of tags", Strings{"alpha", "beta"});
 
         args.parse();
 
