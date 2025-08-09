@@ -61,10 +61,11 @@ namespace Argy {
      * list arguments, shorthand options, and automatic help message generation.
      */
     class Parser {
-        // Helper: Normalize argument name (strip leading dashes)
+        // checks if a string starts with a given prefix
         static bool startsWith(const std::string& str, const std::string& prefix) {
             return str.size() >= prefix.size() && str.compare(0, prefix.size(), prefix) == 0;
         }
+        // normalize argument name (strip leading dashes)
         static std::string normalizeName(const std::string& name) {
             if (startsWith(name, "--")) return name.substr(2);
             if (startsWith(name, "-")) return name.substr(1);
