@@ -59,18 +59,6 @@ namespace Argy {
      * This class provides a flexible and type-safe way to define, parse, and validate command-line arguments.
      * It supports positional and optional arguments, type validation, default values, required arguments,
      * list arguments, shorthand options, and automatic help message generation.
-     *
-     * Example usage:
-     * @code
-     *   int main(int argc, char* argv[]) {
-     *     Argy::Parser parser(argc, argv);
-     *     parser.addString("filename", "Input file");
-     *     parser.addInt("--count", "Number of items", 10);
-     *     parser.parse();
-     *     std::string file = parser.getString("filename");
-     *     int count = parser.getInt("count");
-     *   }
-     * @endcode
      */
     class Parser {
         // Helper: Normalize argument name (strip leading dashes)
@@ -181,12 +169,16 @@ namespace Argy {
             if (!longName.empty()) {
                 m_nameLookup[normalizeName(longName)] = key;
                 m_nameLookup[longName] = key;
-                m_nameLookup["--" + longName] = key;
+                if (!longName.empty()) {
+                    m_nameLookup["--" + longName] = key;
+                }
             }
             if (!shortName.empty()) {
                 m_nameLookup[normalizeName(shortName)] = key;
                 m_nameLookup[shortName] = key;
-                m_nameLookup["-" + shortName] = key;
+                if (!shortName.empty()) {
+                    m_nameLookup["-" + shortName] = key;
+                }
             }
             if (isPositional) {
                 m_nameLookup[normalizeName(longName)] = key;
@@ -194,6 +186,20 @@ namespace Argy {
                 m_positionalOrder.push_back(key);
             }
             return *this;
+        }
+
+        Parser& add(const std::string& name,
+            const std::string& help, 
+            const std::string& defaultValue
+        ){
+            return add<std::string>(std::string(name), std::string(help), std::optional<std::string>(std::string(defaultValue)));
+        }
+
+        Parser& add(const char* name,
+            const char* help, 
+            const char* defaultValue
+        ){  
+            add<std::string>(std::string(name), std::string(help), std::optional<std::string>(std::string(defaultValue)));
         }
 
         /**
@@ -298,17 +304,19 @@ namespace Argy {
          * @return Reference to this Parser for chaining.
          */
         template<typename T>
-        Parser& add(const char* shortName, const char* longName,
+        std::enable_if_t<!std::is_same_v<T, std::string>, Parser&>
+        add(const char* shortName,const char* longName,
                  const std::string& help,
                  std::optional<T> defaultValue = std::nullopt) {
-    
-            if (startsWith(shortName, "--") && !startsWith(longName, "--")) {
-                const std::string h = longName;
-                const std::string d = help;
-                return add<std::string>(shortName, h, d);
-            }
-            
-            return add<T>({shortName, longName}, help, defaultValue);
+            return add<T>(ArgName{std::string(shortName), std::string(longName)}, help, defaultValue);
+        }
+
+        template<typename T>
+        std::enable_if_t<std::is_same_v<T, std::string>, Parser&>
+        add(const char* shortName, const char* longName,
+                    const std::string& help,
+                    const char* defaultValue) {
+            return add<std::string>(ArgName{shortName, longName}, help, std::string(defaultValue));
         }
 
         // Shorter method names for adding arguments
@@ -318,6 +326,12 @@ namespace Argy {
          */
         Parser& addString(const std::string& name, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) { 
             return add<std::string>(name, help, defaultValue); 
+        }
+        Parser& addString(const char* name,  const char* help, std::optional<std::string> defaultValue = std::nullopt) {
+            return addString(std::string(name), help, defaultValue);
+        }
+        Parser& addString(const char* name, const char* help, const char* defaultValue) {
+            return addString(std::string(name), std::string(help), std::string(defaultValue));
         }
         Parser& addInt(const char* name, const char* help, std::optional<int> defaultValue = std::nullopt) { 
             return add<int>(name, help, defaultValue);
@@ -349,15 +363,6 @@ namespace Argy {
             return add<bool>(ArgName{shortName, longName}, help, defaultValue);
         }
         Parser& addString(const char* shortName, const char* longName, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) {
-            std::string s(shortName), l(longName);
-            if (startsWith(s, "--") && !startsWith(l, "--")) {
-                std::string h = l;
-                std::string d = help;
-                return add<std::string>(s, l, d);
-            }
-            else if (!startsWith(s, "-") && !startsWith(l, "--") && !help.empty()) { // positional with default not allowed
-                throw std::invalid_argument("Positional arguments cannot have default values");
-            }
             return add<std::string>({shortName, longName}, help, defaultValue);
         }
         Parser& addFloat(const char* shortName, const char* longName, const std::string& help, std::optional<float> defaultValue = std::nullopt) {
@@ -618,47 +623,63 @@ namespace Argy {
 
             // Section: Options
             std::cout << bold << "Options:" << reset << "\n";
-            // Find max width for alignment
+            // Find max width for alignment (without <value>)
             size_t maxOptLen = 0;
-            std::vector<std::string> optStrings;
+            std::vector<std::string> optNames;
+            std::vector<bool> needsValue;
             for (const auto& [key, argument] : m_arguments) {
                 if (!argument.positional) {
                     std::string opt;
-                    if (!argument.shortName.empty())
+                    if (!argument.shortName.empty() && !argument.longName.empty()) {
                         opt = "-" + argument.shortName + ", --" + argument.longName;
-                    else
+                    } else if (!argument.shortName.empty()) {
+                        opt = "-" + argument.shortName;
+                    } else if (!argument.longName.empty()) {
                         opt = "    --" + argument.longName; // 4 spaces for alignment
-                    if (argument.type != ArgType::Bool)
-                        opt += " <value>";
+                    } else {
+                        opt = "";
+                    }
                     if (opt.size() > maxOptLen) maxOptLen = opt.size();
-                    optStrings.push_back(opt);
+                    optNames.push_back(opt);
+                    needsValue.push_back(argument.type != ArgType::Bool);
                 }
             }
             // Also consider help flag in maxOptLen
             std::string helpFlag = "-h, --help";
             if (helpFlag.size() > maxOptLen) maxOptLen = helpFlag.size();
 
+            // Print options with aligned <value> and help text
             size_t optIdx = 0;
+            const size_t valueColWidth = 8; // width of ' <value> '
             for (const auto& [key, argument] : m_arguments) {
                 if (!argument.positional) {
-                    const std::string& opt = optStrings[optIdx++];
+                    std::string opt = optNames[optIdx];
+                    bool showValue = needsValue[optIdx++];
                     std::cout << "  " << green << opt << reset;
+                    // Pad to align <value>
                     size_t pad = maxOptLen > opt.size() ? maxOptLen - opt.size() : 0;
-                    std::cout << std::string(pad + 2, ' ');
+                    std::cout << std::string(pad, ' ');
+                    // Always print valueColWidth spaces, and <value> if needed
+                    if (showValue) {
+                        std::cout << " <value>";
+                        std::cout << std::string(valueColWidth - 7, ' '); // pad to valueColWidth
+                    } else {
+                        // Add extra spacing for bool flags to align help text
+                        std::cout << std::string(valueColWidth + 1, ' ');
+                    }
                     if (!argument.help.empty())
                         std::cout << argument.help;
                     if (!std::holds_alternative<std::monostate>(argument.defaultValue))
                         std::cout << gray << " (default: " << toString(argument.defaultValue) << ")" << reset;
-                        // Show (required) for required arguments, including bools without default
-                        if (argument.required) {
-                            std::cout << " " << yellow << "(required)" << reset;
-                        }
+                    if (argument.required) {
+                        std::cout << " " << yellow << "(required)" << reset;
+                    }
                     std::cout << "\n";
                 }
             }
             // Help flag, aligned
             size_t helpPad = maxOptLen > helpFlag.size() ? maxOptLen - helpFlag.size() : 0;
-            std::cout << "  " << green << helpFlag << reset << std::string(helpPad + 2, ' ') << "Show this help message\n";
+            std::cout << "  " << green << helpFlag << reset << std::string(helpPad, ' ') << std::string(valueColWidth+1, ' ') << "Show this help message\n";
         }
 
     private:  
