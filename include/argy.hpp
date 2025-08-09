@@ -602,10 +602,10 @@ namespace Argy {
             const char* green = "\033[32m";
 
             // Usage line
-            std::cout << bold << "Usage: " << reset << programName;
-            for (const auto& positional : m_positionalOrder)
-                std::cout << " " << cyan << "<" << positional << ">" << reset;
-            std::cout << " [options]\n\n";
+                std::cout << bold << "Usage: " << reset << programName;
+                for (const auto& positional : m_positionalOrder)
+                    std::cout << " " << cyan << "<" << positional << ">" << reset;
+                std::cout << " " << green << "[options]" << reset << "\n\n";
 
             // Section: Positional arguments
             if (!m_positionalOrder.empty()) {
@@ -662,7 +662,7 @@ namespace Argy {
                     std::cout << std::string(pad, ' ');
                     // Always print valueColWidth spaces, and <value> if needed
                     if (showValue) {
-                        std::cout << " <value>";
+                        std::cout << " " << gray << "<value>" << reset;
                         std::cout << std::string(valueColWidth - 7, ' '); // pad to valueColWidth
                     } else {
                         // Add extra spacing for bool flags to align help text
