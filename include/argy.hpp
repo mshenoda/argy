@@ -268,17 +268,13 @@ namespace Argy {
         Parser& add(std::initializer_list<const char*> names,
                  const std::string& help = "",
                  std::optional<T> defaultValue = std::nullopt) {
-            auto it = names.begin();
-            std::string shortName, longName;
-            if (names.size() == 2) {
-                shortName = *it;
-                ++it;
-                longName = *it;
-            } else if (names.size() == 1) {
-                longName = *it;
-            } else {
-                throw std::invalid_argument("Must provide one or two argument names");
+            if (names.size() != 2) {
+                throw std::invalid_argument("Must provide exactly two argument names: short and long");
             }
+            auto it = names.begin();
+            std::string shortName = *it;
+            ++it;
+            std::string longName = *it;
             add<T>(ArgName{shortName, longName}, help, defaultValue);
             return *this;
         }
