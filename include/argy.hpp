@@ -42,7 +42,7 @@ namespace Argy {
     using Strings = std::vector<std::string>;
 
     /**
-     * @class Parser
+     * @class ArgParser
      * @brief Command-line argument parser inspired by Python's argparse.
      *
      * This class provides a flexible and type-safe way to define, parse, and validate command-line arguments.
@@ -52,7 +52,7 @@ namespace Argy {
     class ArgParser {
     public:
         /**
-         * @brief Constructs a Parser and sets the default help handler.
+         * @brief Constructs a ArgParser and sets the default help handler.
          * @param argc Argument count from main().
          * @param argv Argument vector from main().
          * @param useColors Whether to use ANSI color codes in help output (default: true).
@@ -212,7 +212,7 @@ namespace Argy {
          * @param longName Long name (e.g., "--count").
          * @param help Help text.
          * @param defaultValue Optional default value.
-         * @return Reference to this Parser for chaining.
+         * @return Reference to this ArgParser for chaining.
          */
         template<typename T>
         std::enable_if_t<!std::is_same_v<T, std::string>, ArgParser&>
