@@ -107,7 +107,7 @@ args.addBool("-s", "--save-vis", "Save visualization images"); // Named bool arg
 ### Chaining Methods
 Chain argument definitions for a fluent API:
 
-// Template method chaining
+Template method chaining
 ```cpp
 using namespace std;
 using namespace Argy;
@@ -117,7 +117,7 @@ args.add<string>("image", "Path to input image")
     .add<float>("-t", "--threshold", "Detection threshold");
 ```
 
-// Named convenience method chaining
+Named convenience method chaining
 ```cpp
 using namespace std;
 using namespace Argy;
