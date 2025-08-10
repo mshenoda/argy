@@ -27,12 +27,14 @@
 
 ## Argy
 
-**Effortless Command-Line Parsing for Modern C++**  
+**Argy: Command-Line Parsing Library for Modern C++**<br>
 *Because life’s too short to parse argv by hand!*
 
-A modern, header-only C++17 argument parser that makes CLI development a breeze.
+Effortless, intuitive, and lightweight command-line argument parsing for C++17 and newer. Argy is a header-only library with zero dependencies, designed to make CLI development simple and type-safe.
 
-*If you love Python's argparse or click, you'll feel right at home—argy brings that developer-friendly style to C++.*
+*If you love Python's argparse or click, you'll feel right at home—Argy brings that developer-friendly experience to C++.* 
+
+Perfect for building robust, maintainable command-line tools in modern C++.
 
 ## Online Interactive Demo
 
