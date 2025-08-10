@@ -42,17 +42,6 @@ namespace Argy {
     using Strings = std::vector<std::string>;
 
     /**
-     * @brief Represents a command-line argument name, supporting both short and long forms.
-     *
-     * This struct is used to specify argument names for the parser, allowing for both a short (single character)
-     * and a long (multi-character) name. Either or both can be provided.
-     */
-    struct ArgName {
-        std::string shortName; ///< Short name (e.g., "c" for -c)
-        std::string longName;  ///< Long name (e.g., "count" for --count)
-    };
-
-    /**
      * @class Parser
      * @brief Command-line argument parser inspired by Python's argparse.
      *
@@ -153,7 +142,7 @@ namespace Argy {
                 isRequired = false;
             }
 
-            Argument arg{shortName, longName, help, isRequired, type, val, Value{}, isPositional};
+            Arg arg{shortName, longName, help, isRequired, type, val, Value{}, isPositional};
             std::string key = isPositional ? longName : (longName.empty() ? shortName : longName);
             m_arguments[key] = arg;
             // Register all forms in lookup map
@@ -191,71 +180,6 @@ namespace Argy {
             const char* defaultValue
         ){  
             add<std::string>(std::string(name), std::string(help), std::optional<std::string>(std::string(defaultValue)));
-        }
-
-        /**
-         * @brief Add an argument to the parser (positional or optional) using ArgName.
-         * @tparam T Argument type (int, float, bool, string, or vector thereof).
-         * @param argName ArgName object with short and/or long name.
-         * @param help Help text for usage.
-         * @param defaultValue Optional default value; if omitted, argument is required.
-         * @throws std::runtime_error if attempting to override reserved names --help or -h.
-         */
-        template<typename T>
-        ArgParser& add(const ArgName& argName,
-            const std::string& help = "",
-            std::optional<T> defaultValue = std::nullopt) {
-            std::string shortKey = argName.shortName;
-            std::string longKey = argName.longName;
-
-            // Enforce naming conventions BEFORE stripping dashes
-            if (!shortKey.empty() && !startsWith(shortKey, "-"))
-                throw std::invalid_argument("shortName must start with -");
-            if (!longKey.empty() && !startsWith(longKey, "--"))
-                throw std::invalid_argument("longName must start with --");
-
-            // Strip dashes for storage
-            if (startsWith(shortKey, "-")) shortKey = shortKey.substr(1);
-            if (startsWith(longKey, "--")) longKey = longKey.substr(2);
-            else if (startsWith(longKey, "-")) longKey = longKey.substr(1);
-
-            ArgType type = deduceArgType<T>();
-            Value val = defaultValue ? Value(*defaultValue) : Value{};
-            bool isRequired = !defaultValue.has_value();
-
-            if constexpr (std::is_same_v<T, bool>) {
-                isRequired = false;
-            }
-
-            bool isPositional = longKey.empty();
-            // Check for duplicates
-            for (const auto& [k, v] : m_arguments) {
-                if (!longKey.empty() && v.longName == longKey)
-                    throw std::runtime_error("Duplicate longName: " + longKey);
-                if (!shortKey.empty() && v.shortName == shortKey)
-                    throw std::runtime_error("Duplicate shortName: " + shortKey);
-            }
-
-            Argument arg{shortKey, longKey, help, isRequired, type, val, Value{}, isPositional};
-            std::string key = isPositional ? shortKey : longKey;
-            m_arguments[key] = arg;
-            // Register all forms in lookup map
-            if (!longKey.empty()) {
-                m_nameLookup[normalizeName(longKey)] = key;
-                m_nameLookup[longKey] = key;
-                m_nameLookup["--" + longKey] = key;
-            }
-            if (!shortKey.empty()) {
-                m_nameLookup[normalizeName(shortKey)] = key;
-                m_nameLookup[shortKey] = key;
-                m_nameLookup["-" + shortKey] = key;
-            }
-            if (isPositional) {
-                m_nameLookup[normalizeName(shortKey)] = key;
-                m_nameLookup[shortKey] = key;
-                m_positionalOrder.push_back(key);
-            }
-            return *this;
         }
 
         /**
@@ -369,37 +293,6 @@ namespace Argy {
         }
         /** @} */
 
-        // Overloads for ArgName
-        /**
-         * @name Overloads for ArgName
-         * @{
-         */
-        ArgParser& addString(const ArgName& argName, const std::string& help = "", std::optional<std::string> defaultValue = std::nullopt) { 
-            return add<std::string>(argName, help, defaultValue); 
-        }
-        ArgParser& addInt(const ArgName& argName, const std::string& help = "", std::optional<int> defaultValue = std::nullopt) { 
-            return add<int>(argName, help, defaultValue); 
-        }
-        ArgParser& addFloat(const ArgName& argName, const std::string& help = "", std::optional<float> defaultValue = std::nullopt) { 
-            return add<float>(argName, help, defaultValue); 
-        }
-        ArgParser& addBool(const ArgName& argName, const std::string& help = "", std::optional<bool> defaultValue = false) { 
-            return add<bool>(argName, help, defaultValue); 
-        }
-        ArgParser& addStrings(const ArgName& argName, const std::string& help = "", std::optional<std::vector<std::string>> defaultValue = std::nullopt) { 
-            return add<std::vector<std::string>>(argName, help, defaultValue); 
-        }
-        ArgParser& addInts(const ArgName& argName, const std::string& help = "", std::optional<std::vector<int>> defaultValue = std::nullopt) { 
-            return add<std::vector<int>>(argName, help, defaultValue);
-        }
-        ArgParser& addFloats(const ArgName& argName, const std::string& help = "", std::optional<std::vector<float>> defaultValue = std::nullopt) {
-            return add<std::vector<float>>(argName, help, defaultValue);
-        }
-        ArgParser& addBools(const ArgName& argName, const std::string& help = "", std::optional<std::vector<bool>> defaultValue = std::nullopt) { 
-            return add<std::vector<bool>>(argName, help, defaultValue); 
-        }
-        /** @} */
-
         /**
          * @brief Parse command-line arguments using stored argc/argv.
          *
@@ -435,7 +328,7 @@ namespace Argy {
                     });
                     if (it == m_arguments.end()) throw std::runtime_error("Unknown argument: --" + normKey);
                     currentKey = it->first;
-                    Argument& arg = it->second;
+                    Arg& arg = it->second;
                     if (isListType(arg.type)) {
                         arg.parsedValue = std::vector<std::string>{};
                         continue;
@@ -452,7 +345,7 @@ namespace Argy {
                     });
                     if (it == m_arguments.end()) throw std::runtime_error("Unknown short argument: -" + normKey);
                     currentKey = it->first;
-                    Argument& arg = it->second;
+                    Arg& arg = it->second;
                     if (isListType(arg.type)) {
                         arg.parsedValue = std::vector<std::string>{};
                         continue;
@@ -462,7 +355,7 @@ namespace Argy {
                         currentKey.clear();
                     }
                 } else if (!currentKey.empty()) {
-                    Argument& arg = m_arguments.at(currentKey);
+                    Arg& arg = m_arguments.at(currentKey);
                     if (isListType(arg.type)) {
                         if (std::holds_alternative<std::vector<std::string>>(arg.parsedValue)) {
                             std::get<std::vector<std::string>>(arg.parsedValue).push_back(token);
@@ -476,7 +369,7 @@ namespace Argy {
                     if (positionalIndex >= m_positionalOrder.size())
                         throw std::runtime_error("Unexpected positional argument: " + token);
                     std::string name = m_positionalOrder[positionalIndex++];
-                    Argument& arg = m_arguments.at(name);
+                    Arg& arg = m_arguments.at(name);
                     arg.parsedValue = token;
                 }
             }
@@ -516,7 +409,7 @@ namespace Argy {
             std::string normName = normalizeName(name);
             auto lookupIt = m_nameLookup.find(normName);
             if (lookupIt == m_nameLookup.end()) throw std::runtime_error("Argument not found: " + name);
-            const Argument& arg = m_arguments.at(lookupIt->second);
+            const Arg& arg = m_arguments.at(lookupIt->second);
             if constexpr (is_vector<T>::value) {
                 if (std::holds_alternative<std::vector<std::string>>(arg.parsedValue)) {
                     return fromStringVector<typename T::value_type>(std::get<std::vector<std::string>>(arg.parsedValue));
@@ -553,7 +446,7 @@ namespace Argy {
             std::string normName = normalizeName(name);
             auto lookupIt = m_nameLookup.find(normName);
             if (lookupIt == m_nameLookup.end()) return false;
-            const Argument& arg = m_arguments.at(lookupIt->second);
+            const Arg& arg = m_arguments.at(lookupIt->second);
             return !std::holds_alternative<std::monostate>(arg.parsedValue);
         }
 
@@ -707,7 +600,7 @@ namespace Argy {
          * @struct Argument
          * @brief Represents one command-line argument and its metadata.
          */
-        struct Argument {
+        struct Arg {
             std::string shortName;   
             std::string longName;   
             std::string help;       ///< Help/description string.
@@ -718,13 +611,89 @@ namespace Argy {
             bool positional{ false }; ///< True if this is a positional argument.
         };
 
+        /**
+         * @brief Represents a command-line argument name, supporting both short and long forms.
+         *
+         * This struct is used to specify argument names for the parser, allowing for both a short (single character)
+         * and a long (multi-character) name. Either or both can be provided.
+         */
+        struct ArgName {
+            std::string shortName; ///< Short name (e.g., "c" for -c)
+            std::string longName;  ///< Long name (e.g., "count" for --count)
+        };
+
         // Lookup map: maps all forms to canonical key
         std::unordered_map<std::string, std::string> m_nameLookup; ///< Maps argument names to canonical keys.
-        std::unordered_map<std::string, Argument> m_arguments; ///< Map of all arguments.
+        std::unordered_map<std::string, Arg> m_arguments; ///< Map of all arguments.
         std::vector<std::string> m_positionalOrder; ///< Order of positional arguments.
         std::function<void(std::string)> m_helpHandler; ///< Function to handle help requests.
         int m_argc; ///< Argument count from main().
         char** m_argv; ///< Argument vector from main().
+
+        /**
+         * @brief Add an argument to the parser (positional or optional) using ArgName.
+         * @tparam T Argument type (int, float, bool, string, or vector thereof).
+         * @param argName ArgName object with short and/or long name.
+         * @param help Help text for usage.
+         * @param defaultValue Optional default value; if omitted, argument is required.
+         * @throws std::runtime_error if attempting to override reserved names --help or -h.
+         */
+        template<typename T>
+        ArgParser& add(const ArgName& argName,
+            const std::string& help = "",
+            std::optional<T> defaultValue = std::nullopt) {
+            std::string shortKey = argName.shortName;
+            std::string longKey = argName.longName;
+
+            // Enforce naming conventions BEFORE stripping dashes
+            if (!shortKey.empty() && !startsWith(shortKey, "-"))
+                throw std::invalid_argument("shortName must start with -");
+            if (!longKey.empty() && !startsWith(longKey, "--"))
+                throw std::invalid_argument("longName must start with --");
+
+            // Strip dashes for storage
+            if (startsWith(shortKey, "-")) shortKey = shortKey.substr(1);
+            if (startsWith(longKey, "--")) longKey = longKey.substr(2);
+            else if (startsWith(longKey, "-")) longKey = longKey.substr(1);
+
+            ArgType type = deduceArgType<T>();
+            Value val = defaultValue ? Value(*defaultValue) : Value{};
+            bool isRequired = !defaultValue.has_value();
+
+            if constexpr (std::is_same_v<T, bool>) {
+                isRequired = false;
+            }
+
+            bool isPositional = longKey.empty();
+            // Check for duplicates
+            for (const auto& [k, v] : m_arguments) {
+                if (!longKey.empty() && v.longName == longKey)
+                    throw std::runtime_error("Duplicate longName: " + longKey);
+                if (!shortKey.empty() && v.shortName == shortKey)
+                    throw std::runtime_error("Duplicate shortName: " + shortKey);
+            }
+
+            Arg arg{shortKey, longKey, help, isRequired, type, val, Value{}, isPositional};
+            std::string key = isPositional ? shortKey : longKey;
+            m_arguments[key] = arg;
+            // Register all forms in lookup map
+            if (!longKey.empty()) {
+                m_nameLookup[normalizeName(longKey)] = key;
+                m_nameLookup[longKey] = key;
+                m_nameLookup["--" + longKey] = key;
+            }
+            if (!shortKey.empty()) {
+                m_nameLookup[normalizeName(shortKey)] = key;
+                m_nameLookup[shortKey] = key;
+                m_nameLookup["-" + shortKey] = key;
+            }
+            if (isPositional) {
+                m_nameLookup[normalizeName(shortKey)] = key;
+                m_nameLookup[shortKey] = key;
+                m_positionalOrder.push_back(key);
+            }
+            return *this;
+        }
 
         // checks if a string starts with a given prefix
         static bool startsWith(const std::string& str, const std::string& prefix) {
