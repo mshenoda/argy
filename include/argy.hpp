@@ -88,10 +88,7 @@ namespace Argy {
          * If the name starts with dashes, it is treated as an optional argument; otherwise, it is positional.
          */
         template<typename T>
-        ArgParser& add(const std::string& name,
-            const std::string& help = "",
-            std::optional<T> defaultValue = std::nullopt
-        ) {
+        ArgParser& add(const std::string& name, const std::string& help = "", std::optional<T> defaultValue = std::nullopt) {
             std::string cleanName = name;
             bool isPositional = true;
             std::string shortName, longName;
@@ -168,41 +165,12 @@ namespace Argy {
             return *this;
         }
 
-        ArgParser& add(const std::string& name,
-            const std::string& help, 
-            const std::string& defaultValue
-        ){
+        ArgParser& add(const std::string& name, const std::string& help, const std::string& defaultValue) {
             return add<std::string>(std::string(name), std::string(help), std::optional<std::string>(std::string(defaultValue)));
         }
 
-        ArgParser& add(const char* name,
-            const char* help, 
-            const char* defaultValue
-        ){  
+        ArgParser& add(const char* name, const char* help, const char* defaultValue) {  
             add<std::string>(std::string(name), std::string(help), std::optional<std::string>(std::string(defaultValue)));
-        }
-
-        /**
-         * @brief Add an argument using an initializer list of names.
-         * @tparam T Argument type.
-         * @param names List of argument names (one or two: short and/or long).
-         * @param help Help text.
-         * @param defaultValue Optional default value.
-         * @throws std::invalid_argument if the number of names is not one or two.
-         */
-        template<typename T>
-        ArgParser& add(std::initializer_list<const char*> names,
-                 const std::string& help = "",
-                 std::optional<T> defaultValue = std::nullopt) {
-            if (names.size() != 2) {
-                throw std::invalid_argument("Must provide exactly two argument names: short and long");
-            }
-            auto it = names.begin();
-            std::string shortName = *it;
-            ++it;
-            std::string longName = *it;
-            add<T>(ArgName{shortName, longName}, help, defaultValue);
-            return *this;
         }
 
         /**
@@ -216,17 +184,13 @@ namespace Argy {
          */
         template<typename T>
         std::enable_if_t<!std::is_same_v<T, std::string>, ArgParser&>
-        add(const char* shortName,const char* longName,
-                 const std::string& help,
-                 std::optional<T> defaultValue = std::nullopt) {
+        add(const char* shortName,const char* longName, const std::string& help, std::optional<T> defaultValue = std::nullopt) {
             return add<T>(ArgName{std::string(shortName), std::string(longName)}, help, defaultValue);
         }
 
         template<typename T>
         std::enable_if_t<std::is_same_v<T, std::string>, ArgParser&>
-        add(const char* shortName, const char* longName,
-                    const std::string& help,
-                    const char* defaultValue) {
+        add(const char* shortName, const char* longName, const std::string& help, const char* defaultValue) {
             return add<std::string>(ArgName{shortName, longName}, help, std::string(defaultValue));
         }
 
@@ -268,28 +232,28 @@ namespace Argy {
  
         // --- Explicit overloads for named arguments, help, and default value ---
         ArgParser& addInt(const char* shortName, const char* longName, const std::string& help, std::optional<int> defaultValue = std::nullopt) {
-            return add<int>({shortName, longName}, help, defaultValue);
+            return add<int>(ArgName{shortName, longName}, help, defaultValue);
         }
         ArgParser& addBool(const char* shortName, const char* longName,  const std::string& help, std::optional<bool> defaultValue = false) {
             return add<bool>(ArgName{shortName, longName}, help, defaultValue);
         }
         ArgParser& addString(const char* shortName, const char* longName, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) {
-            return add<std::string>({shortName, longName}, help, defaultValue);
+            return add<std::string>(ArgName{shortName, longName}, help, defaultValue);
         }
         ArgParser& addFloat(const char* shortName, const char* longName, const std::string& help, std::optional<float> defaultValue = std::nullopt) {
-            return add<float>({shortName, longName}, help, defaultValue);
+            return add<float>(ArgName{shortName, longName}, help, defaultValue);
         }
         ArgParser& addInts(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<int>> defaultValue = std::nullopt) {
-            return add<std::vector<int>>({shortName, longName}, help, defaultValue);
+            return add<std::vector<int>>(ArgName{shortName, longName}, help, defaultValue);
         }
         ArgParser& addBools(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<bool>> defaultValue = std::nullopt) {
-            return add<std::vector<bool>>({shortName, longName}, help, defaultValue);
+            return add<std::vector<bool>>(ArgName{shortName, longName}, help, defaultValue);
         }
         ArgParser& addStrings(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
-            return add<std::vector<std::string>>({shortName, longName}, help, defaultValue);
+            return add<std::vector<std::string>>(ArgName{shortName, longName}, help, defaultValue);
         }
         ArgParser& addFloats(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<float>> defaultValue = std::nullopt) {
-            return add<std::vector<float>>({shortName, longName}, help, defaultValue);
+            return add<std::vector<float>>(ArgName{shortName, longName}, help, defaultValue);
         }
         /** @} */
 

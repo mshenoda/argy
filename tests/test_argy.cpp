@@ -270,20 +270,6 @@ TEST_CASE("Long name only argument with default value and override: vector of fl
     CHECK(values[2] == doctest::Approx(3.3));
 }
 
-
-TEST_CASE("Initializer list API for short and long names") {
-    const char* argv[] = {"prog", "--filename", "input.txt", "--number", "42", "--count", "7"};
-    int argc = 7;
-    ArgParser parser(argc, const_cast<char**>(argv));
-    parser.add<std::string>({"-f", "--filename"}, "Input file");
-    parser.add<int>({"-n", "--number"}, "A number");
-    parser.add<int>({"-c", "--count"}, "Count", 10);
-    parser.parse();
-    CHECK(parser.get<std::string>("filename") == "input.txt");
-    CHECK(parser.get<int>("number") == 42);
-    CHECK(parser.get<int>("count") == 7);
-}
-
 TEST_CASE("Positional and optional mix with all API variants") {
     const char* argv[] = {"prog", "file.txt", "123", "--flag", "--names", "A", "B"};
     int argc = 7;
