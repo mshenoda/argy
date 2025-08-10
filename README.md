@@ -85,7 +85,7 @@ Define arguments and access them with the template API:
 #include "argy.hpp"
 using namespace std;
 using namespace Argy;
-Parser args(argc, argv);
+ArgParser args(argc, argv);
 args.add<string>("image", "Path to input image");            // Positional argument 
 args.add<string>("-m", "--model", "Path to model weights");  // Named string argument, without default (required) 
 args.add<float>("-t", "--threshold", "Detection threshold", 0.5f); // Named float argument, with default
@@ -98,7 +98,7 @@ Use named methods for clarity:
 ```cpp
 using namespace std;
 using namespace Argy;
-Parser args(argc, argv);
+ArgParser args(argc, argv);
 args.addString("image", "Path to input image");   // Positional argument 
 args.addInt("-n", "--num-classes", "Number of classes", 80);  // Named int argument, with default
 args.addBool("-s", "--save-vis", "Save visualization images"); // Named bool argument
@@ -111,7 +111,7 @@ Chain argument definitions for a fluent API:
 ```cpp
 using namespace std;
 using namespace Argy;
-Parser args(argc, argv);
+ArgParser args(argc, argv);
 args.add<string>("image", "Path to input image")
     .add<string>("-m", "--model", "Path to model weights")
     .add<float>("-t", "--threshold", "Detection threshold");
@@ -121,7 +121,7 @@ args.add<string>("image", "Path to input image")
 ```cpp
 using namespace std;
 using namespace Argy;
-Parser args(argc, argv);
+ArgParser args(argc, argv);
 args.addString("image", "Path to input image")
     .addInt("-n", "--num-classes", "Number of classes", 80)
     .addBool("-s", "--save-vis", "Save visualization images");
@@ -154,7 +154,7 @@ using namespace std;
 using namespace Argy;
 
 int main(int argc, char* argv[]) {
-    Parser args(argc, argv);
+    ArgParser args(argc, argv);
     try {
         // add arguments
         args.add<string>("image", "Path to input image");
@@ -165,7 +165,6 @@ int main(int argc, char* argv[]) {
         args.add<string>("-o","--output", "Output directory", "results/");
         args.add<int>("-n", "--num-classes", "Number of classes", 80);
         args.add<bool>("-s", "--save-vis", "Save visualization images");
-        args.add<Floats>("-n","--norm", "normalization values", Floats{0.48f, 0.45f, 0.40f});
 
         // parse arguments
         args.parse();
@@ -179,7 +178,6 @@ int main(int argc, char* argv[]) {
         auto output = args.get<string>("output");
         auto numClasses = args.get<int>("num-classes");
         auto saveVis = args.get<bool>("save-vis");
-        auto meanValues = args.get<Floats>("mean");
 
         // use the arguments...
     } catch (const exception& ex) {
@@ -202,7 +200,7 @@ using namespace std;
 using namespace Argy;
 
 int main(int argc, char* argv[]) {
-    Parser args(argc, argv);
+    ArgParser args(argc, argv);
     try {
         // add arguments
         args.addString("image", "Path to input image");
@@ -213,7 +211,6 @@ int main(int argc, char* argv[]) {
         args.addString("-o","--output", "Output directory", "results/");
         args.addInt("-n", "--num-classes", "Number of classes", 80);
         args.addBool("-s", "--save-vis", "Save visualization images");
-        args.addFloats("-n","--norm", "normalization values", Floats{0.48f, 0.45f, 0.40f});
 
         // parse arguments
         args.parse();
@@ -227,12 +224,11 @@ int main(int argc, char* argv[]) {
         auto output = args.getString("output");
         auto numClasses = args.getInt("num-classes");
         auto saveVis = args.getBool("save-vis");
-        auto meanValues = args.getFloats("mean");
 
         // use the arguments...
     } catch (const exception& ex) {
         cerr << "Error: " << ex.what() << '\n';
-        args.printHelp(argv[0]);
+  args.printHelp(argv[0]);
         return 1;
     }
     return 0;
@@ -247,18 +243,17 @@ Argy prints a help message when you run your program with `--help` or `-h`, or c
 Usage: ./my_program <image> [options]
 
 Positional:
-  image              Path to input image       (required)
+  image     Path to input image  (required)
 
 Options:
-  -m, --model        Path to model             (required)
-  -t, --threshold    Detection threshold       (default: 0.5)
-  -v, --visualize    Visualize results         (default: false)
-  -i, --input-size   Input size                (default: 640, 480)
-  -o, --output       Output directory          (default: results/)
-  -n, --num-classes  Number of classes         (default: 80)
-  -s, --save-vis     Save visualization images (default: false)
-  -m, --mean         Mean normalization values (default: 0.48, 0.45, 0.40)
-  -h, --help         Show this help message
+  -m, --model       <value> Path to model             (required)
+  -t, --threshold   <value> Detection threshold       (default: 0.5)
+  -v, --visualize           Visualize results         (default: false)
+  -i, --input-size  <value> Input size                (default: 640, 480)
+  -o, --output      <value> Output directory          (default: results/)
+  -n, --num-classes <value> Number of classes         (default: 80)
+  -s, --save-vis            Save visualization images (default: false)
+  -h, --help                Show this help message
 ```
 
 > **Note:** The actual output in your terminal will be colorized and bold if ANSI colors are supported.
