@@ -555,11 +555,41 @@ namespace Argy {
             // Section: Positional arguments
             if (!m_positionalOrder.empty()) {
                 std::cout << bold << "Positional:" << reset << "\n";
+                // Find max width for alignment (name + type)
+                size_t maxPosLen = 0;
+                std::vector<std::string> posNames;
+                std::vector<std::string> posTypes;
                 for (const auto& key : m_positionalOrder) {
                     const auto& argument = m_arguments.at(key);
-                    std::cout << "  " << cyan << argument.longName << reset;
+                    std::string pos = argument.longName;
+                    std::string type;
+                    switch (argument.type) {
+                        case ArgType::Int: type = "<int>"; break;
+                        case ArgType::Float: type = "<float>"; break;
+                        case ArgType::Bool: type = "<bool>"; break;
+                        case ArgType::String: type = "<string>"; break;
+                        case ArgType::IntList: type = "<int[]>"; break;
+                        case ArgType::FloatList: type = "<float[]>"; break;
+                        case ArgType::BoolList: type = "<bool[]>"; break;
+                        case ArgType::StringList: type = "<string[]>"; break;
+                        default: type = "<value>"; break;
+                    }
+                    size_t len = pos.size() + 1 + type.size();
+                    if (len > maxPosLen) maxPosLen = len;
+                    posNames.push_back(pos);
+                    posTypes.push_back(type);
+                }
+                size_t posIdx = 0;
+                for (const auto& key : m_positionalOrder) {
+                    const auto& argument = m_arguments.at(key);
+                    std::string pos = posNames[posIdx];
+                    std::string type = posTypes[posIdx++];
+                    std::cout << "  " << cyan << pos << reset << " " << gray << type << reset;
+                    size_t pad = maxPosLen > (pos.size() + 1 + type.size()) ? maxPosLen - (pos.size() + 1 + type.size()) : 0;
+                    std::cout << std::string(pad, ' ');
+                    // Help message starts here
                     if (!argument.help.empty())
-                        std::cout << "\t" << argument.help;
+                        std::cout << "  " << argument.help;
                     if (!std::holds_alternative<std::monostate>(argument.defaultValue))
                         std::cout << gray << " (default: " << toString(argument.defaultValue) << ")" << reset;
                     std::cout << "\n";
@@ -569,10 +599,10 @@ namespace Argy {
 
             // Section: Options
             std::cout << bold << "Options:" << reset << "\n";
-            // Find max width for alignment (without <value>)
+            // Find max width for alignment (name + type)
             size_t maxOptLen = 0;
             std::vector<std::string> optNames;
-            std::vector<bool> needsValue;
+            std::vector<std::string> valueTypes;
             for (const auto& [key, argument] : m_arguments) {
                 if (!argument.positional) {
                     std::string opt;
@@ -585,36 +615,42 @@ namespace Argy {
                     } else {
                         opt = "";
                     }
-                    if (opt.size() > maxOptLen) maxOptLen = opt.size();
+                    // Determine value type
+                    std::string valueType;
+                    switch (argument.type) {
+                        case ArgType::Int: valueType = "<int>"; break;
+                        case ArgType::Float: valueType = "<float>"; break;
+                        case ArgType::Bool: valueType = "<bool>"; break;
+                        case ArgType::String: valueType = "<string>"; break;
+                        case ArgType::IntList: valueType = "<int[]>"; break;
+                        case ArgType::FloatList: valueType = "<float[]>"; break;
+                        case ArgType::BoolList: valueType = "<bool[]>"; break;
+                        case ArgType::StringList: valueType = "<string[]>"; break;
+                        default: valueType = "<value>"; break;
+                    }
+                    size_t len = opt.size() + 1 + valueType.size();
+                    if (len > maxOptLen) maxOptLen = len;
                     optNames.push_back(opt);
-                    needsValue.push_back(argument.type != ArgType::Bool);
+                    valueTypes.push_back(valueType);
                 }
             }
             // Also consider help flag in maxOptLen
             std::string helpFlag = "-h, --help";
-            if (helpFlag.size() > maxOptLen) maxOptLen = helpFlag.size();
+            size_t helpLen = helpFlag.size() + 1 + std::string("<bool>").size();
+            if (helpLen > maxOptLen) maxOptLen = helpLen;
 
             // Print options with aligned <value> and help text
             size_t optIdx = 0;
-            const size_t valueColWidth = 8; // width of ' <value> '
             for (const auto& [key, argument] : m_arguments) {
                 if (!argument.positional) {
                     std::string opt = optNames[optIdx];
-                    bool showValue = needsValue[optIdx++];
-                    std::cout << "  " << green << opt << reset;
-                    // Pad to align <value>
-                    size_t pad = maxOptLen > opt.size() ? maxOptLen - opt.size() : 0;
+                    std::string valueType = valueTypes[optIdx++];
+                    std::cout << "  " << green << opt << reset << " " << gray << valueType << reset;
+                    size_t pad = maxOptLen > (opt.size() + 1 + valueType.size()) ? maxOptLen - (opt.size() + 1 + valueType.size()) : 0;
                     std::cout << std::string(pad, ' ');
-                    // Always print valueColWidth spaces, and <value> if needed
-                    if (showValue) {
-                        std::cout << " " << gray << "<value>" << reset;
-                        std::cout << std::string(valueColWidth - 7, ' '); // pad to valueColWidth
-                    } else {
-                        // Add extra spacing for bool flags to align help text
-                        std::cout << std::string(valueColWidth + 1, ' ');
-                    }
+                    // Help message starts here
                     if (!argument.help.empty())
-                        std::cout << argument.help;
+                        std::cout << "  " << argument.help;
                     if (!std::holds_alternative<std::monostate>(argument.defaultValue))
                         std::cout << gray << " (default: " << toString(argument.defaultValue) << ")" << reset;
                     if (argument.required) {
@@ -624,8 +660,8 @@ namespace Argy {
                 }
             }
             // Help flag, aligned
-            size_t helpPad = maxOptLen > helpFlag.size() ? maxOptLen - helpFlag.size() : 0;
-            std::cout << "  " << green << helpFlag << reset << std::string(helpPad, ' ') << std::string(valueColWidth+1, ' ') << "Show this help message\n";
+            size_t helpPad = maxOptLen > helpLen ? maxOptLen - helpLen : 0;
+            std::cout << "  " << green << helpFlag << reset << " " << gray << "<bool>" << reset << std::string(helpPad, ' ') << "  Show this help message\n";
         }
 
     private:
