@@ -9,7 +9,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    name: To build and test in FreeBSD
     steps:
     - uses: actions/checkout@v4
     - name: FreeBSD-vm
