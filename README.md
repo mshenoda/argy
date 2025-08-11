@@ -48,7 +48,6 @@ Try argy in your browser using Compiler Explorer:
 - 🎯 Supports positional, optional, and flag arguments
 - 🔒 **Type-safe** access to parsed values
 - 📝 Customizable help output
-- 🛠️ Modern, chainable API
 
 ## Installation
 
@@ -87,38 +86,17 @@ Define arguments and access them with the template API:
 #include "argy.hpp"
 Argy::CliParser cli(argc, argv);
 cli.add<std::string>("image", "Path to input image");            // Positional argument
-cli.add<std::string>("-m", "--model", "Path to model weights");  // Named string argument, without default (required)
-cli.add<float>("-t", "--threshold", "Detection threshold", 0.5f); // Named float argument, with default
-cli.add<bool>("--visualize", "Show detection results");   // Named bool argument
-cli.add<Argy::Ints>("--input-size", "Input size", Argy::Ints{640, 480});     // Named vector<int> argument, with default
+cli.add<int>("-n", "--num-classes", "Number of classes", 80);  // Named int argument, with default
+cli.add<bool>("-s", "--save-vis", "Save visualization images"); // Named bool argument
 ```
 
-### Named Convenience Methods
+### Convenience Methods
 Use named methods for clarity:
 ```cpp
 Argy::CliParser cli(argc, argv);
 cli.addString("image", "Path to input image");   // Positional argument
 cli.addInt("-n", "--num-classes", "Number of classes", 80);  // Named int argument, with default
 cli.addBool("-s", "--save-vis", "Save visualization images"); // Named bool argument
-```
-
-### Chaining Methods
-Chain argument definitions for a fluent API:
-
-Template method chaining
-```cpp
-Argy::CliParser cli(argc, argv);
-cli.add<std::string>("image", "Path to input image")
-  .add<std::string>("-m", "--model", "Path to model weights")
-  .add<float>("-t", "--threshold", "Detection threshold");
-```
-
-Named convenience method chaining
-```cpp
-Argy::CliParser cli(argc, argv);
-cli.addString("image", "Path to input image")
-  .addInt("-n", "--num-classes", "Number of classes", 80)
-  .addBool("-s", "--save-vis", "Save visualization images");
 ```
 
 ### Parsing and Accessing Arguments
@@ -148,28 +126,28 @@ try {
 int main(int argc, char* argv[]) {
     Argy::CliParser cli(argc, argv);
       try {
-        // add arguments
-        cli.addString("image", "Path to input image");
-        cli.addString("-m","--model", "Path to model");
-        cli.addFloat("-t","--threshold", "Detection threshold", 0.5f);
-        cli.addBool("-v", "--visualize", "Visualize results");
-        cli.addInts("-i","--input-size", "Input size", Argy::Ints{640, 480});
-        cli.addString("-o","--output", "Output directory", "results/");
-        cli.addInt("-n", "--num-classes", "Number of classes", 80);
-        cli.addBool("-s", "--save-vis", "Save visualization images");
+        // add arguments using template methods
+        cli.add<std::string>("image", "Path to input image");
+        cli.add<std::string>("-m", "--model", "Path to model");
+        cli.add<float>("-t", "--threshold", "Detection threshold", 0.5f);
+        cli.add<bool>("-v", "--visualize", "Visualize results");
+        cli.add<Argy::Ints>("-i", "--input-size", "Input size", Argy::Ints{640, 480});
+        cli.add<std::string>("-o", "--output", "Output directory", "results/");
+        cli.add<int>("-n", "--num-classes", "Number of classes", 80);
+        cli.add<bool>("-s", "--save-vis", "Save visualization images");
 
         // parse arguments
         cli.parse();
 
         // get parsed arguments
-        auto image = cli.getString("image");
-        auto model = cli.getString("model");
-        auto threshold = cli.getFloat("threshold");
-        auto visualize = cli.getBool("visualize");
-        auto inputSize = cli.getInts("input-size");
-        auto output = cli.getString("output");
-        auto numClasses = cli.getInt("num-classes");
-        auto saveVis = cli.getBool("save-vis");
+        auto image = cli.get<std::string>("image");
+        auto model = cli.get<std::string>("model");
+        auto threshold = cli.get<float>("threshold");
+        auto visualize = cli.get<bool>("visualize");
+        auto inputSize = cli.get<Argy::Ints>("input-size");
+        auto output = cli.get<std::string>("output");
+        auto numClasses = cli.get<int>("num-classes");
+        auto saveVis = cli.get<bool>("save-vis");
 
         // use the arguments...
       } catch (const Argy::Exception& ex) {
@@ -236,14 +214,14 @@ Positional:
   image     Path to input image  (required)
 
 Options:
-  -m, --model       <value> Path to model             (required)
-  -t, --threshold   <value> Detection threshold       (default: 0.5)
-  -v, --visualize           Visualize results         (default: false)
-  -i, --input-size  <value> Input size                (default: 640, 480)
-  -o, --output      <value> Output directory          (default: results/)
-  -n, --num-classes <value> Number of classes         (default: 80)
-  -s, --save-vis            Save visualization images (default: false)
-  -h, --help                Show this help message
+  -m, --model       <string> Path to model             (required)
+  -t, --threshold   <float>  Detection threshold       (default: 0.5)
+  -v, --visualize            Visualize results         (default: false)
+  -i, --input-size  <int[]>  Input size                (default: [640, 480])
+  -o, --output      <string> Output directory          (default: results/)
+  -n, --num-classes <int>    Number of classes         (default: 80)
+  -s, --save-vis             Save visualization images 
+  -h, --help                 Show this help message
 ```
 
 > **Note:** The actual output in your terminal will be colorized and bold if ANSI colors are supported.
