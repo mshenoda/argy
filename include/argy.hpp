@@ -35,7 +35,11 @@
 #include <algorithm>
 
 namespace Argy {
-
+    
+    /*
+    * @class Exception
+    * @brief Base class for all exceptions in the Argy library.
+    */
     class Exception : public std::exception {
     public:
         explicit Exception(const std::string& message) : m_message(message) {}
@@ -45,46 +49,90 @@ namespace Argy {
         std::string m_message;
     };
 
+    /**
+     * @class DefineException
+     * @brief Base class for exceptions related to argument definition errors.
+     */
     class DefineException : public Exception {
         using Exception::Exception;
     };
 
+    /**
+     * @class ParseException
+     * @brief Base class for exceptions related to argument parsing errors.
+     */
     class ReservedArgumentException : public DefineException {
         using DefineException::DefineException;
     };
 
+    /**
+     * @class DuplicateArgumentException   
+     * @brief Exception thrown when an argument is defined multiple times.
+     */
     class DuplicateArgumentException : public DefineException {
         using DefineException::DefineException;
     };
 
+    /**
+     * @class InvalidArgumentException
+     * @brief Exception thrown when an argument definition is invalid.
+     */
     class InvalidArgumentException : public DefineException {
         using DefineException::DefineException;
     };
 
+    /**
+     * @class ParseException
+     * @brief Base class for exceptions related to argument parsing errors.
+     */
     class ParseException : public Exception {
         using Exception::Exception;
     };
 
+    /**
+     * @class ArgumentNotFoundException
+     * @brief Exception thrown when a requested argument is not found.
+     */
     class UnknownArgumentException : public ParseException {
         using ParseException::ParseException;
     };
 
+    /**
+     * @class MissingArgumentException
+     * @brief Exception thrown when a required argument is missing.
+     */
     class MissingArgumentException : public ParseException {
         using ParseException::ParseException;
     };
 
+    /**
+     * @class TypeMismatchException
+     * @brief Exception thrown when an argument's type does not match the expected type.
+     */
     class TypeMismatchException : public ParseException {
         using ParseException::ParseException;
     };
 
+    /**
+     * @class UnexpectedPositionalArgumentException
+     * @brief Exception thrown when an unexpected positional argument is encountered.
+     */
     class UnexpectedPositionalArgumentException : public ParseException {
         using ParseException::ParseException;
     };
 
+    /**
+     * @class ValidateException
+     * @brief Base class for exceptions related to argument validation errors.
+     */
     class ValidateException : public Exception {
         using Exception::Exception;
     };
 
+    /**
+     * @class InvalidValueException
+     * @brief Exception thrown when an argument value is invalid or cannot be converted.
+     */
     class InvalidValueException : public ValidateException {
         using ValidateException::ValidateException;
     };
@@ -317,7 +365,12 @@ namespace Argy {
          * This method processes the command-line arguments, validates types, checks for required arguments,
          * and sets default values where appropriate. Throws on unknown or missing required arguments.
          *
-         * @throws std::runtime_error on unknown or missing required arguments.
+         * @throws UnknownArgumentException if an unknown argument is encountered.
+         * @throws MissingArgumentException if a required argument is missing.
+         * @throws TypeMismatchException if an argument's type does not match the expected type.
+         * @throws UnexpectedPositionalArgumentException if a positional argument is encountered out of order.
+         * @throws InvalidValueException if a value cannot be converted to the expected type.
+         * @note This method automatically handles the --help and -h flags by invoking the help handler.
          */
         void parse() {
             int argc = m_argc;
@@ -473,13 +526,14 @@ namespace Argy {
          * @tparam T Expected argument type.
          * @param name Argument name.
          * @return Parsed argument value of type T.
-         * @throws std::runtime_error if the argument is not found or type conversion fails.
+         * @throws UnknownArgumentException if the argument is not found.
+         * @throws TypeMismatchException if the argument type does not match T.
          */
         template<typename T>
         T get(const std::string& name) const {
             std::string normName = normalizeName(name);
             auto lookupIt = m_nameLookup.find(normName);
-            if (lookupIt == m_nameLookup.end()) throw std::runtime_error("Argument not found: " + name);
+            if (lookupIt == m_nameLookup.end()) throw UnknownArgumentException("Argument not found: " + name);
             const Arg& arg = m_arguments.at(lookupIt->second);
             // Handle vector types
             if constexpr (is_vector<T>::value) {
@@ -488,18 +542,18 @@ namespace Argy {
                 } else if (!std::holds_alternative<std::monostate>(arg.defaultValue) && std::holds_alternative<T>(arg.defaultValue)) {
                     return std::get<T>(arg.defaultValue);
                 }
-                throw std::runtime_error("Type mismatch: argument '" + name + "' was not provided as the requested vector type.");
+                throw TypeMismatchException("Type mismatch: argument '" + name + "' is not of type " + typeid(T).name() + ".");
             } else {
                 if (std::holds_alternative<std::monostate>(arg.parsedValue)) {
                     if (!std::holds_alternative<std::monostate>(arg.defaultValue) && std::holds_alternative<T>(arg.defaultValue)) {
                         return std::get<T>(arg.defaultValue);
                     }
-                    throw std::runtime_error("Argument not found: " + name);
+                    throw UnknownArgumentException("Argument not found: " + name);
                 }
                 if (std::holds_alternative<T>(arg.parsedValue)) {
                     return std::get<T>(arg.parsedValue);
                 }
-                throw std::runtime_error("Type mismatch: argument '" + name + "' was not provided as the requested type.");
+                throw TypeMismatchException("Type mismatch: argument '" + name + "' is not of type " + typeid(T).name() + ".");
             }
         }
 
