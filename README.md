@@ -146,7 +146,6 @@ int main(int argc, char* argv[]) {
     auto inputSize = cli.get<Argy::Ints>("input-size");
     auto output = cli.get<std::string>("output");
     auto numClasses = cli.get<int>("num-classes");
-    auto saveVis = cli.get<bool>("save-vis");
 
     // use the arguments...
   } catch (const Argy::Exception& ex) {
