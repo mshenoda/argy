@@ -1,6 +1,10 @@
-name: Test
+name: FreeBSD
 
-on: [push]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   test:
@@ -8,9 +12,8 @@ jobs:
     name: To build and test in FreeBSD
     steps:
     - uses: actions/checkout@v4
-    - name: Test in FreeBSD
-      id: test
-      uses: vmactions/freebsd-vm@v1
+    - name: FreeBSD-vm
+      uses: vmactions/freebsd-vm@v1.2.1
       with:
         usesh: true
         prepare: |
