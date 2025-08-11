@@ -1,0 +1,22 @@
+name: FreeBSD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test on FreeBSD
+        uses: cross-platform-actions/freebsd-vm@v1
+        with:
+          version: '15.0'
+          command: |
+            pkg install -y cmake gmake
+            cmake -S . -B build
+            cmake --build build
+            ctest --test-dir build --output-on-failure
