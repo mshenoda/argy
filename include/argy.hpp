@@ -35,6 +35,60 @@
 #include <algorithm>
 
 namespace Argy {
+
+    class Exception : public std::exception {
+    public:
+        explicit Exception(const std::string& message) : m_message(message) {}
+        const char* what() const noexcept override { return m_message.c_str(); }
+
+    private:
+        std::string m_message;
+    };
+
+    class DefineException : public Exception {
+        using Exception::Exception;
+    };
+
+    class ReservedArgumentException : public DefineException {
+        using DefineException::DefineException;
+    };
+
+    class DuplicateArgumentException : public DefineException {
+        using DefineException::DefineException;
+    };
+
+    class InvalidArgumentException : public DefineException {
+        using DefineException::DefineException;
+    };
+
+    class ParseException : public Exception {
+        using Exception::Exception;
+    };
+
+    class UnknownArgumentException : public ParseException {
+        using ParseException::ParseException;
+    };
+
+    class MissingArgumentException : public ParseException {
+        using ParseException::ParseException;
+    };
+
+    class TypeMismatchException : public ParseException {
+        using ParseException::ParseException;
+    };
+
+    class UnexpectedPositionalArgumentException : public ParseException {
+        using ParseException::ParseException;
+    };
+
+    class ValidateException : public Exception {
+        using Exception::Exception;
+    };
+
+    class InvalidValueException : public ValidateException {
+        using ValidateException::ValidateException;
+    };
+
     // Type aliases for supported vector types
     using Bools = std::vector<bool>;
     using Ints = std::vector<int>;
@@ -42,24 +96,24 @@ namespace Argy {
     using Strings = std::vector<std::string>;
 
     /**
-     * @class ArgParser
+     * @class CliParser
      * @brief Command-line argument parser inspired by Python's argparse.
      *
      * This class provides a flexible and type-safe way to define, parse, and validate command-line arguments.
      * It supports positional and optional arguments, type validation, default values, required arguments,
      * list arguments, shorthand options, and automatic help message generation.
      */
-    class ArgParser {
+    class CliParser {
     public:
         /**
-         * @brief Constructs a ArgParser and sets the default help handler.
+         * @brief Constructs a CliParser and sets the default help handler.
          * @param argc Argument count from main().
          * @param argv Argument vector from main().
          * @param useColors Whether to use ANSI color codes in help output (default: true).
          *
          * The default help handler prints help and exits. You can override it with setHelpHandler().
          */
-        ArgParser(int argc, char* argv[], bool useColors = true)
+        CliParser(int argc, char* argv[], bool useColors = true)
             : m_argc(argc), m_argv(argv), m_useColors(useColors) {
             m_helpHandler = [this](std::string name) {
                 printHelp(name);
@@ -88,7 +142,7 @@ namespace Argy {
          * If the name starts with dashes, it is treated as an optional argument; otherwise, it is positional.
          */
         template<typename T>
-        ArgParser& add(const std::string& name, const std::string& help = "", std::optional<T> defaultValue = std::nullopt) {
+        CliParser& add(const std::string& name, const std::string& help = "", std::optional<T> defaultValue = std::nullopt) {
             std::string cleanName = name;
             bool isPositional = true;
             std::string shortName, longName;
@@ -96,11 +150,11 @@ namespace Argy {
             // Enforce naming conventions BEFORE stripping dashes
             if (startsWith(cleanName, "--")) {
                 if (cleanName.size() <= 2)
-                    throw std::invalid_argument("longName must not be empty after --");
+                    throw InvalidArgumentException("longName must not be empty after --");
             }
             else if (startsWith(cleanName, "-")) {
                 if (cleanName.size() <= 1)
-                    throw std::invalid_argument("shortName must not be empty after -");
+                    throw InvalidArgumentException("shortName must not be empty after -");
             }
 
             // Always strip leading dashes for single-name methods
@@ -114,21 +168,21 @@ namespace Argy {
             } else {
                 longName = cleanName;
                 if(defaultValue.has_value()) {
-                    throw std::invalid_argument("Positional arguments cannot have default values");
+                    throw InvalidArgumentException("Positional arguments cannot have default values");
                 }
             }
 
             // Prevent overriding help flags
             if (longName == "help" || shortName == "h") {
-                throw std::runtime_error("Cannot redefine built-in --help/-h argument");
+                throw ReservedArgumentException("Cannot redefine built-in --help/-h argument");
             }
 
             // Check for duplicates
             for (const auto& [k, v] : m_arguments) {
                 if (!longName.empty() && v.longName == longName)
-                    throw std::runtime_error("Duplicate longName: " + longName);
+                    throw DuplicateArgumentException("Duplicate longName: " + longName);
                 if (!shortName.empty() && v.shortName == shortName)
-                    throw std::runtime_error("Duplicate shortName: " + shortName);
+                    throw DuplicateArgumentException("Duplicate shortName: " + shortName);
             }
 
             ArgType type = deduceArgType<T>();
@@ -165,11 +219,11 @@ namespace Argy {
             return *this;
         }
 
-        ArgParser& add(const std::string& name, const std::string& help, const std::string& defaultValue) {
+        CliParser& add(const std::string& name, const std::string& help, const std::string& defaultValue) {
             return add<std::string>(std::string(name), std::string(help), std::optional<std::string>(std::string(defaultValue)));
         }
 
-        ArgParser& add(const char* name, const char* help, const char* defaultValue) {  
+        CliParser& add(const char* name, const char* help, const char* defaultValue) {  
             add<std::string>(std::string(name), std::string(help), std::optional<std::string>(std::string(defaultValue)));
         }
 
@@ -180,16 +234,16 @@ namespace Argy {
          * @param longName Long name (e.g., "--count").
          * @param help Help text.
          * @param defaultValue Optional default value.
-         * @return Reference to this ArgParser for chaining.
+         * @return Reference to this CliParser for chaining.
          */
         template<typename T>
-        std::enable_if_t<!std::is_same_v<T, std::string>, ArgParser&>
+        std::enable_if_t<!std::is_same_v<T, std::string>, CliParser&>
         add(const char* shortName,const char* longName, const std::string& help, std::optional<T> defaultValue = std::nullopt) {
             return add<T>(ArgName{std::string(shortName), std::string(longName)}, help, defaultValue);
         }
 
         template<typename T>
-        std::enable_if_t<std::is_same_v<T, std::string>, ArgParser&>
+        std::enable_if_t<std::is_same_v<T, std::string>, CliParser&>
         add(const char* shortName, const char* longName, const std::string& help, const char* defaultValue) {
             return add<std::string>(ArgName{shortName, longName}, help, std::string(defaultValue));
         }
@@ -199,60 +253,60 @@ namespace Argy {
          * @name Convenience methods for adding arguments of specific types
          * @{
          */
-        ArgParser& addString(const std::string& name, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) { 
+        CliParser& addString(const std::string& name, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) { 
             return add<std::string>(name, help, defaultValue); 
         }
-        ArgParser& addString(const char* name,  const char* help, std::optional<std::string> defaultValue = std::nullopt) {
+        CliParser& addString(const char* name,  const char* help, std::optional<std::string> defaultValue = std::nullopt) {
             return addString(std::string(name), help, defaultValue);
         }
-        ArgParser& addString(const char* name, const char* help, const char* defaultValue) {
+        CliParser& addString(const char* name, const char* help, const char* defaultValue) {
             return addString(std::string(name), std::string(help), std::string(defaultValue));
         }
-        ArgParser& addInt(const char* name, const char* help, std::optional<int> defaultValue = std::nullopt) { 
+        CliParser& addInt(const char* name, const char* help, std::optional<int> defaultValue = std::nullopt) { 
             return add<int>(name, help, defaultValue);
         }
-        ArgParser& addFloat(const char* name, const char* help, std::optional<float> defaultValue = std::nullopt) { 
+        CliParser& addFloat(const char* name, const char* help, std::optional<float> defaultValue = std::nullopt) { 
             return add<float>(name, help, defaultValue);
         }
-        ArgParser& addBool(const std::string& name, const std::string& help, std::optional<bool> defaultValue = false) { 
+        CliParser& addBool(const std::string& name, const std::string& help, std::optional<bool> defaultValue = false) { 
             return add<bool>(name, help, defaultValue); 
         }
-        ArgParser& addStrings(const char* name, const char* help, std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
+        CliParser& addStrings(const char* name, const char* help, std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
             return add<std::vector<std::string>>(name, help, defaultValue);
         }
-        ArgParser& addInts(const char* name, const char* help, std::optional<std::vector<int>> defaultValue = std::nullopt) { 
+        CliParser& addInts(const char* name, const char* help, std::optional<std::vector<int>> defaultValue = std::nullopt) { 
             return add<std::vector<int>>(name, help, defaultValue); 
         }
-        ArgParser& addFloats(const char* name, const char* help, std::optional<std::vector<float>> defaultValue = std::nullopt) { 
+        CliParser& addFloats(const char* name, const char* help, std::optional<std::vector<float>> defaultValue = std::nullopt) { 
             return add<std::vector<float>>(name, help, defaultValue); 
         }
-        ArgParser& addBools(const char* name, const char* help, std::optional<std::vector<bool>> defaultValue = std::nullopt) { 
+        CliParser& addBools(const char* name, const char* help, std::optional<std::vector<bool>> defaultValue = std::nullopt) { 
             return add<std::vector<bool>>(name, help, defaultValue); 
         }
  
         // --- Explicit overloads for named arguments, help, and default value ---
-        ArgParser& addInt(const char* shortName, const char* longName, const std::string& help, std::optional<int> defaultValue = std::nullopt) {
+        CliParser& addInt(const char* shortName, const char* longName, const std::string& help, std::optional<int> defaultValue = std::nullopt) {
             return add<int>(ArgName{shortName, longName}, help, defaultValue);
         }
-        ArgParser& addBool(const char* shortName, const char* longName,  const std::string& help, std::optional<bool> defaultValue = false) {
+        CliParser& addBool(const char* shortName, const char* longName,  const std::string& help, std::optional<bool> defaultValue = false) {
             return add<bool>(ArgName{shortName, longName}, help, defaultValue);
         }
-        ArgParser& addString(const char* shortName, const char* longName, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) {
+        CliParser& addString(const char* shortName, const char* longName, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) {
             return add<std::string>(ArgName{shortName, longName}, help, defaultValue);
         }
-        ArgParser& addFloat(const char* shortName, const char* longName, const std::string& help, std::optional<float> defaultValue = std::nullopt) {
+        CliParser& addFloat(const char* shortName, const char* longName, const std::string& help, std::optional<float> defaultValue = std::nullopt) {
             return add<float>(ArgName{shortName, longName}, help, defaultValue);
         }
-        ArgParser& addInts(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<int>> defaultValue = std::nullopt) {
+        CliParser& addInts(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<int>> defaultValue = std::nullopt) {
             return add<std::vector<int>>(ArgName{shortName, longName}, help, defaultValue);
         }
-        ArgParser& addBools(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<bool>> defaultValue = std::nullopt) {
+        CliParser& addBools(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<bool>> defaultValue = std::nullopt) {
             return add<std::vector<bool>>(ArgName{shortName, longName}, help, defaultValue);
         }
-        ArgParser& addStrings(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
+        CliParser& addStrings(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
             return add<std::vector<std::string>>(ArgName{shortName, longName}, help, defaultValue);
         }
-        ArgParser& addFloats(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<float>> defaultValue = std::nullopt) {
+        CliParser& addFloats(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<float>> defaultValue = std::nullopt) {
             return add<std::vector<float>>(ArgName{shortName, longName}, help, defaultValue);
         }
         /** @} */
@@ -290,7 +344,7 @@ namespace Argy {
                     auto it = std::find_if(m_arguments.begin(), m_arguments.end(), [&](const auto& pair) {
                         return pair.second.longName == "--" + normKey || pair.second.longName == normKey;
                     });
-                    if (it == m_arguments.end()) throw std::runtime_error("Unknown argument: --" + normKey);
+                    if (it == m_arguments.end()) throw UnknownArgumentException("Unknown argument: --" + normKey);
                     currentKey = it->first;
                     Arg& arg = it->second;
                     if (isListType(arg.type)) {
@@ -307,7 +361,7 @@ namespace Argy {
                     auto it = std::find_if(m_arguments.begin(), m_arguments.end(), [&](const auto& pair) {
                         return pair.second.shortName == normKey;
                     });
-                    if (it == m_arguments.end()) throw std::runtime_error("Unknown short argument: -" + normKey);
+                    if (it == m_arguments.end()) throw UnknownArgumentException("Unknown short argument: -" + normKey);
                     currentKey = it->first;
                     Arg& arg = it->second;
                     if (isListType(arg.type)) {
@@ -331,7 +385,7 @@ namespace Argy {
                 } else {
                     // Positional argument
                     if (positionalIndex >= m_positionalOrder.size())
-                        throw std::runtime_error("Unexpected positional argument: " + token);
+                        throw UnexpectedPositionalArgumentException("Unexpected positional argument: " + token);
                     std::string name = m_positionalOrder[positionalIndex++];
                     Arg& arg = m_arguments.at(name);
                     arg.parsedValue = token;
@@ -342,60 +396,72 @@ namespace Argy {
             for (auto& [key, argument] : m_arguments) {
                 if (!isListType(argument.type) && std::holds_alternative<std::monostate>(argument.parsedValue)) {
                     if (argument.required)
-                        throw std::runtime_error("Missing required argument: " + argument.longName);
+                        throw MissingArgumentException("Missing required argument: " + argument.longName);
                     argument.parsedValue = argument.defaultValue;
                 } else if (isListType(argument.type) && std::holds_alternative<std::monostate>(argument.parsedValue)) {
                     if (argument.required)
-                        throw std::runtime_error("Missing required list argument: " + argument.longName);
+                        throw MissingArgumentException("Missing required list argument: " + argument.longName);
                     argument.parsedValue = argument.defaultValue;
                 } else {
                     // Convert single value types
                     if (!isListType(argument.type) && std::holds_alternative<std::string>(argument.parsedValue)) {
                         const std::string& val = std::get<std::string>(argument.parsedValue);
-                        switch (argument.type) {
-                        case ArgType::Int:
-                            argument.parsedValue = std::stoi(val);
-                            break;
-                        case ArgType::Float:
-                            argument.parsedValue = std::stof(val);
-                            break;
-                        case ArgType::Bool:
-                            argument.parsedValue = (val == "true" || val == "1");
-                            break;
-                        case ArgType::String:
-                            // already string
-                            break;
-                        default:
-                            break;
+                        try {
+                            switch (argument.type) {
+                            case ArgType::Int:
+                                argument.parsedValue = std::stoi(val);
+                                break;
+                            case ArgType::Float:
+                                argument.parsedValue = std::stof(val);
+                                break;
+                            case ArgType::Bool:
+                                argument.parsedValue = (val == "true" || val == "1");
+                                break;
+                            case ArgType::String:
+                                // already string
+                                break;
+                            default:
+                                break;
+                            }
+                        } catch (const std::invalid_argument& e) {
+                            throw InvalidValueException(std::string("Invalid value for argument '") + argument.longName + "': " + val + " (" + e.what() + ")");
+                        } catch (const std::out_of_range& e) {
+                            throw InvalidValueException(std::string("Value out of range for argument '") + argument.longName + "': " + val + " (" + e.what() + ")");
                         }
                     }
                     // Convert list types
                     else if (isListType(argument.type) && std::holds_alternative<std::vector<std::string>>(argument.parsedValue)) {
                         const auto& vec = std::get<std::vector<std::string>>(argument.parsedValue);
-                        switch (argument.type) {
-                        case ArgType::IntList: {
-                            std::vector<int> out;
-                            for (const auto& v : vec) out.push_back(std::stoi(v));
-                            argument.parsedValue = out;
-                            break;
-                        }
-                        case ArgType::FloatList: {
-                            std::vector<float> out;
-                            for (const auto& v : vec) out.push_back(std::stof(v));
-                            argument.parsedValue = out;
-                            break;
-                        }
-                        case ArgType::BoolList: {
-                            std::vector<bool> out;
-                            for (const auto& v : vec) out.push_back(v == "true" || v == "1");
-                            argument.parsedValue = out;
-                            break;
-                        }
-                        case ArgType::StringList:
-                            // already string vector
-                            break;
-                        default:
-                            break;
+                        try {
+                            switch (argument.type) {
+                            case ArgType::IntList: {
+                                std::vector<int> out;
+                                for (const auto& v : vec) out.push_back(std::stoi(v));
+                                argument.parsedValue = out;
+                                break;
+                            }
+                            case ArgType::FloatList: {
+                                std::vector<float> out;
+                                for (const auto& v : vec) out.push_back(std::stof(v));
+                                argument.parsedValue = out;
+                                break;
+                            }
+                            case ArgType::BoolList: {
+                                std::vector<bool> out;
+                                for (const auto& v : vec) out.push_back(v == "true" || v == "1");
+                                argument.parsedValue = out;
+                                break;
+                            }
+                            case ArgType::StringList:
+                                // already string vector
+                                break;
+                            default:
+                                break;
+                            }
+                        } catch (const std::invalid_argument& e) {
+                            throw InvalidValueException("Invalid value in list for argument '" + argument.longName + "'" + std::string(" (") + e.what() + ")");
+                        } catch (const std::out_of_range& e) {
+                            throw InvalidValueException("Value out of range in list for argument '" + argument.longName + "'" + std::string(" (") + e.what() + ")");
                         }
                     }
                 }
@@ -639,7 +705,7 @@ namespace Argy {
          * @throws std::runtime_error if attempting to override reserved names --help or -h.
          */
         template<typename T>
-        ArgParser& add(const ArgName& argName,
+        CliParser& add(const ArgName& argName,
             const std::string& help = "",
             std::optional<T> defaultValue = std::nullopt) {
             std::string shortKey = argName.shortName;
@@ -647,9 +713,9 @@ namespace Argy {
 
             // Enforce naming conventions BEFORE stripping dashes
             if (!shortKey.empty() && !startsWith(shortKey, "-"))
-                throw std::invalid_argument("shortName must start with -");
+                throw InvalidArgumentException("shortName must start with -");
             if (!longKey.empty() && !startsWith(longKey, "--"))
-                throw std::invalid_argument("longName must start with --");
+                throw InvalidArgumentException("longName must start with --");
 
             // Strip dashes for storage
             if (startsWith(shortKey, "-")) shortKey = shortKey.substr(1);
@@ -668,9 +734,9 @@ namespace Argy {
             // Check for duplicates
             for (const auto& [k, v] : m_arguments) {
                 if (!longKey.empty() && v.longName == longKey)
-                    throw std::runtime_error("Duplicate longName: " + longKey);
+                    throw DuplicateArgumentException("Duplicate longName: " + longKey);
                 if (!shortKey.empty() && v.shortName == shortKey)
-                    throw std::runtime_error("Duplicate shortName: " + shortKey);
+                    throw DuplicateArgumentException("Duplicate shortName: " + shortKey);
             }
 
             Arg arg{shortKey, longKey, help, isRequired, type, val, Value{}, isPositional};
@@ -771,7 +837,7 @@ namespace Argy {
             case ArgType::Float: (void)std::stof(val); break;
             case ArgType::Bool:
                 if (val != "true" && val != "false" && val != "1" && val != "0")
-                    throw std::invalid_argument("Expected boolean value");
+                    throw InvalidValueException("Expected boolean value");
                 break;
             default:
                 break;

@@ -8,7 +8,7 @@ using namespace std;
 using namespace Argy;
 
 int main(int argc, char* argv[]) {
-    ArgParser args(argc, argv);
+    CliParser args(argc, argv);
     try {
         // Positional argument
         args.addString("filename", "Input file");
