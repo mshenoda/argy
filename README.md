@@ -85,25 +85,21 @@ There are several ways to use argy in your project:
 Define arguments and access them with the template API:
 ```cpp
 #include "argy.hpp"
-using namespace std;
-using namespace Argy;
-ArgParser args(argc, argv);
-args.add<string>("image", "Path to input image");            // Positional argument 
-args.add<string>("-m", "--model", "Path to model weights");  // Named string argument, without default (required) 
-args.add<float>("-t", "--threshold", "Detection threshold", 0.5f); // Named float argument, with default
-args.add<bool>("--visualize", "Show detection results");   // Named bool argument
-args.add<Ints>("--input-size", "Input size", Ints{640, 480});     // Named vector<int> argument, with default
+Argy::CliParser cli(argc, argv);
+cli.add<std::string>("image", "Path to input image");            // Positional argument
+cli.add<std::string>("-m", "--model", "Path to model weights");  // Named string argument, without default (required)
+cli.add<float>("-t", "--threshold", "Detection threshold", 0.5f); // Named float argument, with default
+cli.add<bool>("--visualize", "Show detection results");   // Named bool argument
+cli.add<Argy::Ints>("--input-size", "Input size", Argy::Ints{640, 480});     // Named vector<int> argument, with default
 ```
 
 ### Named Convenience Methods
 Use named methods for clarity:
 ```cpp
-using namespace std;
-using namespace Argy;
-ArgParser args(argc, argv);
-args.addString("image", "Path to input image");   // Positional argument 
-args.addInt("-n", "--num-classes", "Number of classes", 80);  // Named int argument, with default
-args.addBool("-s", "--save-vis", "Save visualization images"); // Named bool argument
+Argy::CliParser cli(argc, argv);
+cli.addString("image", "Path to input image");   // Positional argument
+cli.addInt("-n", "--num-classes", "Number of classes", 80);  // Named int argument, with default
+cli.addBool("-s", "--save-vis", "Save visualization images"); // Named bool argument
 ```
 
 ### Chaining Methods
@@ -111,35 +107,31 @@ Chain argument definitions for a fluent API:
 
 Template method chaining
 ```cpp
-using namespace std;
-using namespace Argy;
-ArgParser args(argc, argv);
-args.add<string>("image", "Path to input image")
-    .add<string>("-m", "--model", "Path to model weights")
-    .add<float>("-t", "--threshold", "Detection threshold");
+Argy::CliParser cli(argc, argv);
+cli.add<std::string>("image", "Path to input image")
+  .add<std::string>("-m", "--model", "Path to model weights")
+  .add<float>("-t", "--threshold", "Detection threshold");
 ```
 
 Named convenience method chaining
 ```cpp
-using namespace std;
-using namespace Argy;
-ArgParser args(argc, argv);
-args.addString("image", "Path to input image")
-    .addInt("-n", "--num-classes", "Number of classes", 80)
-    .addBool("-s", "--save-vis", "Save visualization images");
+Argy::CliParser cli(argc, argv);
+cli.addString("image", "Path to input image")
+  .addInt("-n", "--num-classes", "Number of classes", 80)
+  .addBool("-s", "--save-vis", "Save visualization images");
 ```
 
 ### Parsing and Accessing Arguments
 Typical usage pattern:
 ```cpp
 try {
-    args.parse();
-    auto image = args.get<string>("image");
-    auto threshold = args.get<float>("threshold");
-} catch (const exception& ex) {
-    cerr << "Error: " << ex.what() << '\n';
-    args.printHelp(argv[0]);
-    return 1;
+  cli.parse();
+  auto image = cli.getString("image");
+  auto threshold = cli.getFloat("threshold");
+} catch (const Argy::Exception& ex) {
+  std::cerr << "Error: " << ex.what() << '\n';
+  cli.printHelp(argv[0]);
+  return 1;
 }
 ```
 
@@ -152,43 +144,41 @@ try {
 #include <vector>
 #include <exception>
 #include "argy.hpp"
-using namespace std;
-using namespace Argy;
 
 int main(int argc, char* argv[]) {
-    ArgParser args(argc, argv);
-    try {
+    Argy::CliParser cli(argc, argv);
+      try {
         // add arguments
-        args.add<string>("image", "Path to input image");
-        args.add<string>("-m","--model", "Path to model");
-        args.add<float>("-t","--threshold", "Detection threshold", 0.5f);
-        args.add<bool>("-v", "--visualize", "Visualize results");
-        args.add<Ints>("-i","--input-size", "Input size", Ints{640, 480});
-        args.add<string>("-o","--output", "Output directory", "results/");
-        args.add<int>("-n", "--num-classes", "Number of classes", 80);
-        args.add<bool>("-s", "--save-vis", "Save visualization images");
+        cli.addString("image", "Path to input image");
+        cli.addString("-m","--model", "Path to model");
+        cli.addFloat("-t","--threshold", "Detection threshold", 0.5f);
+        cli.addBool("-v", "--visualize", "Visualize results");
+        cli.addInts("-i","--input-size", "Input size", Argy::Ints{640, 480});
+        cli.addString("-o","--output", "Output directory", "results/");
+        cli.addInt("-n", "--num-classes", "Number of classes", 80);
+        cli.addBool("-s", "--save-vis", "Save visualization images");
 
         // parse arguments
-        args.parse();
+        cli.parse();
 
         // get parsed arguments
-        auto image = args.get<string>("image");
-        auto model = args.get<string>("model");
-        auto threshold = args.get<float>("threshold");
-        auto visualize = args.get<bool>("visualize");
-        auto inputSize = args.get<Ints>("input-size");
-        auto output = args.get<string>("output");
-        auto numClasses = args.get<int>("num-classes");
-        auto saveVis = args.get<bool>("save-vis");
+        auto image = cli.getString("image");
+        auto model = cli.getString("model");
+        auto threshold = cli.getFloat("threshold");
+        auto visualize = cli.getBool("visualize");
+        auto inputSize = cli.getInts("input-size");
+        auto output = cli.getString("output");
+        auto numClasses = cli.getInt("num-classes");
+        auto saveVis = cli.getBool("save-vis");
 
         // use the arguments...
-    } catch (const exception& ex) {
-        cerr << "Error: " << ex.what() << '\n';
-        args.printHelp(argv[0]);
+      } catch (const Argy::Exception& ex) {
+        std::cerr << "Error: " << ex.what() << '\n';
+        cli.printHelp(argv[0]);
         return 1;
+      }
+      return 0;
     }
-    return 0;
-}
 ```
 
 ### Full example using named convenience methods
@@ -198,43 +188,41 @@ int main(int argc, char* argv[]) {
 #include <vector>
 #include <exception>
 #include "argy.hpp"
-using namespace std;
-using namespace Argy;
 
 int main(int argc, char* argv[]) {
-    ArgParser args(argc, argv);
-    try {
+    Argy::CliParser cli(argc, argv);
+      try {
         // add arguments
-        args.addString("image", "Path to input image");
-        args.addString("-m","--model", "Path to model");
-        args.addFloat("-t","--threshold", "Detection threshold", 0.5f);
-        args.addBool("-v", "--visualize", "Visualize results");
-        args.addInts("-i","--input-size", "Input size", Ints{640, 480});
-        args.addString("-o","--output", "Output directory", "results/");
-        args.addInt("-n", "--num-classes", "Number of classes", 80);
-        args.addBool("-s", "--save-vis", "Save visualization images");
+        cli.addString("image", "Path to input image");
+        cli.addString("-m","--model", "Path to model");
+        cli.addFloat("-t","--threshold", "Detection threshold", 0.5f);
+        cli.addBool("-v", "--visualize", "Visualize results");
+        cli.addInts("-i","--input-size", "Input size", Argy::Ints{640, 480});
+        cli.addString("-o","--output", "Output directory", "results/");
+        cli.addInt("-n", "--num-classes", "Number of classes", 80);
+        cli.addBool("-s", "--save-vis", "Save visualization images");
 
         // parse arguments
-        args.parse();
+        cli.parse();
 
         // get parsed arguments
-        auto image = args.getString("image");
-        auto model = args.getString("model");
-        auto threshold = args.getFloat("threshold");
-        auto visualize = args.getBool("visualize");
-        auto inputSize = args.getInts("input-size");
-        auto output = args.getString("output");
-        auto numClasses = args.getInt("num-classes");
-        auto saveVis = args.getBool("save-vis");
+        auto image = cli.getString("image");
+        auto model = cli.getString("model");
+        auto threshold = cli.getFloat("threshold");
+        auto visualize = cli.getBool("visualize");
+        auto inputSize = cli.getInts("input-size");
+        auto output = cli.getString("output");
+        auto numClasses = cli.getInt("num-classes");
+        auto saveVis = cli.getBool("save-vis");
 
         // use the arguments...
-    } catch (const exception& ex) {
-        cerr << "Error: " << ex.what() << '\n';
-  args.printHelp(argv[0]);
+      } catch (const Argy::Exception& ex) {
+        std::cerr << "Error: " << ex.what() << '\n';
+        cli.printHelp(argv[0]);
         return 1;
+      }
+      return 0;
     }
-    return 0;
-}
 ```
 
 ## Example Help Output
@@ -260,11 +248,17 @@ Options:
 
 > **Note:** The actual output in your terminal will be colorized and bold if ANSI colors are supported.
 
-## Argument Requirements
+## Argument Requirements & API Notes
 
+- The main parser class is now `CliParser`.
+- Exception types are more granular: `ReservedArgumentException`, `DuplicateArgumentException`, `InvalidArgumentException`, `UnknownArgumentException`, `MissingArgumentException`, `TypeMismatchException`, `UnexpectedPositionalArgumentException`, `InvalidValueException`.
+- Type aliases for vector arguments: `Bools`, `Ints`, `Floats`, `Strings`.
 - Positional arguments (those without dashes) are always **required** and cannot have default values.
 - Named arguments are **required** by default, but become **optional** if you specify a default value.
 - Flag arguments (e.g., `--save-vis`) do not require a value; their presence sets them to `true`.
+- The parser auto-handles `--help` and `-h` flags and prevents overriding them.
+- Convenience getters: `getInt`, `getFloat`, `getBool`, `getString`, `getInts`, etc.
+- Argument naming conventions are strictly enforced (e.g., `--long` for long names, `-s` for short names).
 
 ## Contributing
 Contributions are welcome! Please open issues or pull requests for bug fixes, features, or improvements.
