@@ -10,14 +10,17 @@
     <img src="https://img.shields.io/github/v/tag/mshenoda/argy?label=release" alt="Release"/>
     </a>
   <a href="https://github.com/mshenoda/argy/actions/workflows/ci-linux.yml">
-    <img src="https://github.com/mshenoda/argy/actions/workflows/ci-linux.yml/badge.svg" alt="Linux Build"/>
+    <img src="https://img.shields.io/github/actions/workflow/status/mshenoda/argy/ci-linux.yml?label=Linux&logo=linux" alt="Linux Build"/>
   </a>
   <a href="https://github.com/mshenoda/argy/actions/workflows/ci-windows.yml">
-    <img src="https://github.com/mshenoda/argy/actions/workflows/ci-windows.yml/badge.svg" alt="Windows Build"/>
+    <img src="https://img.shields.io/github/actions/workflow/status/mshenoda/argy/ci-windows.yml?label=Windows&logo=windows" alt="Windows Build"/>
   </a>
   <a href="https://github.com/mshenoda/argy/actions/workflows/ci-macos.yml">
-    <img src="https://github.com/mshenoda/argy/actions/workflows/ci-macos.yml/badge.svg" alt="macOS Build"/>
+    <img src="https://img.shields.io/github/actions/workflow/status/mshenoda/argy/ci-macos.yml?label=macOS&logo=apple" alt="macOS Build"/>
   </a>
+    <a href="https://github.com/mshenoda/argy/actions/workflows/ci-freebsd.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/mshenoda/argy/ci-freebsd.yml?label=FreeBSD&logo=freebsd" alt="FreeBSD Build"/>
+    </a>
   <p align="center">
     <a href="https://godbolt.org/z/1WrjPjq8r" target="_blank" rel="noopener noreferrer">
       <img src="https://img.shields.io/badge/Godbolt-Demo-blue?logo=compilerexplorer" alt="Try Online"/>
