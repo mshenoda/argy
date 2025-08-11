@@ -338,7 +338,7 @@ namespace Argy {
                 }
             }
 
-            // Validate required and set defaults
+            // Validate required, set defaults, and convert types
             for (auto& [key, argument] : m_arguments) {
                 if (!isListType(argument.type) && std::holds_alternative<std::monostate>(argument.parsedValue)) {
                     if (argument.required)
@@ -349,12 +349,53 @@ namespace Argy {
                         throw std::runtime_error("Missing required list argument: " + argument.longName);
                     argument.parsedValue = argument.defaultValue;
                 } else {
-                    if (!isListType(argument.type) && !std::holds_alternative<std::monostate>(argument.parsedValue)) {
-                        validateType(toString(argument.parsedValue), argument.type);
-                    } else if (isListType(argument.type) && std::holds_alternative<std::vector<std::string>>(argument.parsedValue)) {
+                    // Convert single value types
+                    if (!isListType(argument.type) && std::holds_alternative<std::string>(argument.parsedValue)) {
+                        const std::string& val = std::get<std::string>(argument.parsedValue);
+                        switch (argument.type) {
+                        case ArgType::Int:
+                            argument.parsedValue = std::stoi(val);
+                            break;
+                        case ArgType::Float:
+                            argument.parsedValue = std::stof(val);
+                            break;
+                        case ArgType::Bool:
+                            argument.parsedValue = (val == "true" || val == "1");
+                            break;
+                        case ArgType::String:
+                            // already string
+                            break;
+                        default:
+                            break;
+                        }
+                    }
+                    // Convert list types
+                    else if (isListType(argument.type) && std::holds_alternative<std::vector<std::string>>(argument.parsedValue)) {
                         const auto& vec = std::get<std::vector<std::string>>(argument.parsedValue);
-                        for (const auto& v : vec) {
-                            validateType(v, argument.type);
+                        switch (argument.type) {
+                        case ArgType::IntList: {
+                            std::vector<int> out;
+                            for (const auto& v : vec) out.push_back(std::stoi(v));
+                            argument.parsedValue = out;
+                            break;
+                        }
+                        case ArgType::FloatList: {
+                            std::vector<float> out;
+                            for (const auto& v : vec) out.push_back(std::stof(v));
+                            argument.parsedValue = out;
+                            break;
+                        }
+                        case ArgType::BoolList: {
+                            std::vector<bool> out;
+                            for (const auto& v : vec) out.push_back(v == "true" || v == "1");
+                            argument.parsedValue = out;
+                            break;
+                        }
+                        case ArgType::StringList:
+                            // already string vector
+                            break;
+                        default:
+                            break;
                         }
                     }
                 }
@@ -374,30 +415,25 @@ namespace Argy {
             auto lookupIt = m_nameLookup.find(normName);
             if (lookupIt == m_nameLookup.end()) throw std::runtime_error("Argument not found: " + name);
             const Arg& arg = m_arguments.at(lookupIt->second);
+            // Handle vector types
             if constexpr (is_vector<T>::value) {
-                if (std::holds_alternative<std::vector<std::string>>(arg.parsedValue)) {
-                    return fromStringVector<typename T::value_type>(std::get<std::vector<std::string>>(arg.parsedValue));
-                } else if (!std::holds_alternative<std::monostate>(arg.defaultValue)) {
-                    // Use default value if available
-                    if constexpr (std::is_same_v<T, std::vector<int>>) {
-                        return std::get<std::vector<int>>(arg.defaultValue);
-                    } else if constexpr (std::is_same_v<T, std::vector<float>>) {
-                        return std::get<std::vector<float>>(arg.defaultValue);
-                    } else if constexpr (std::is_same_v<T, std::vector<bool>>) {
-                        return std::get<std::vector<bool>>(arg.defaultValue);
-                    } else if constexpr (std::is_same_v<T, std::vector<std::string>>) {
-                        return std::get<std::vector<std::string>>(arg.defaultValue);
-                    }
+                if (std::holds_alternative<T>(arg.parsedValue)) {
+                    return std::get<T>(arg.parsedValue);
+                } else if (!std::holds_alternative<std::monostate>(arg.defaultValue) && std::holds_alternative<T>(arg.defaultValue)) {
+                    return std::get<T>(arg.defaultValue);
                 }
-                throw std::runtime_error("Argument list not found: " + name);
+                throw std::runtime_error("Type mismatch: argument '" + name + "' was not provided as the requested vector type.");
             } else {
                 if (std::holds_alternative<std::monostate>(arg.parsedValue)) {
-                    if (!std::holds_alternative<std::monostate>(arg.defaultValue)) {
-                        return fromString<T>(toString(arg.defaultValue));
+                    if (!std::holds_alternative<std::monostate>(arg.defaultValue) && std::holds_alternative<T>(arg.defaultValue)) {
+                        return std::get<T>(arg.defaultValue);
                     }
                     throw std::runtime_error("Argument not found: " + name);
                 }
-                return fromString<T>(toString(arg.parsedValue));
+                if (std::holds_alternative<T>(arg.parsedValue)) {
+                    return std::get<T>(arg.parsedValue);
+                }
+                throw std::runtime_error("Type mismatch: argument '" + name + "' was not provided as the requested type.");
             }
         }
 
@@ -669,17 +705,7 @@ namespace Argy {
             if (startsWith(name, "-")) return name.substr(1);
             return name;
         }
-
-        /**
-         * @brief Throws if unknown or positional argument used as option.
-         * @param key Argument key to check.
-         * @throws std::runtime_error if the argument is unknown or positional.
-         */
-        void ensureKnown(const std::string& key) const {
-            if (!m_arguments.count(key) || m_arguments.at(key).positional)
-                throw std::runtime_error("Unknown argument: --" + key);
-        }
-
+        
         /**
          * @brief Converts Value variant to string for defaults and printing.
          * @param value The Value to convert.
@@ -753,29 +779,6 @@ namespace Argy {
         }
 
         /**
-         * @brief Convert string to value of type T.
-         * @tparam T Target type.
-         * @param value String value to convert.
-         * @return Value of type T.
-         */
-        template<typename T>
-        static T fromString(const std::string& value);
-
-        /**
-         * @brief Convert vector of strings to vector of type T.
-         * @tparam T Target type.
-         * @param vec Vector of strings to convert.
-         * @return Vector of type T.
-         */
-        template<typename T>
-        static std::vector<T> fromStringVector(const std::vector<std::string>& vec) {
-            std::vector<T> result;
-            for (const auto& s : vec)
-                result.push_back(fromString<T>(s));
-            return result;
-        }
-
-        /**
          * @brief Helper type trait to detect std::vector types.
          * @tparam T Type to check.
          */
@@ -813,13 +816,4 @@ namespace Argy {
             else static_assert(sizeof(T) == 0, "Unsupported argument type");
         }       
     };
-
-    template<>
-    inline int ArgParser::fromString<int>(const std::string& value) { return std::stoi(value); }
-    template<>
-    inline float ArgParser::fromString<float>(const std::string& value) { return std::stof(value); }
-    template<>
-    inline bool ArgParser::fromString<bool>(const std::string& value) { return value == "true" || value == "1"; }
-    template<>
-    inline std::string ArgParser::fromString<std::string>(const std::string& value) { return value; }
 }
