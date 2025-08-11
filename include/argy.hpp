@@ -915,25 +915,6 @@ namespace Argy {
         }
 
         /**
-         * @brief Validate a string against the expected argument type.
-         * @param val The string value to check.
-         * @param type The expected argument type.
-         * @throws std::invalid_argument if validation fails.
-         */
-        static void validateType(const std::string& val, ArgType type) {
-            switch (type) {
-            case ArgType::Int: (void)std::stoi(val); break;
-            case ArgType::Float: (void)std::stof(val); break;
-            case ArgType::Bool:
-                if (val != "true" && val != "false" && val != "1" && val != "0")
-                    throw InvalidValueException("Expected boolean value");
-                break;
-            default:
-                break;
-            }
-        }
-
-        /**
          * @brief Helper type trait to detect std::vector types.
          * @tparam T Type to check.
          */
