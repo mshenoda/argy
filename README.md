@@ -19,7 +19,7 @@
     <img src="https://github.com/mshenoda/argy/actions/workflows/ci-macos.yml/badge.svg" alt="macOS Build"/>
   </a>
   <p align="center">
-    <a href="https://godbolt.org/z/nnr3M8b13" target="_blank" rel="noopener noreferrer">
+    <a href="https://godbolt.org/z/1WrjPjq8r" target="_blank" rel="noopener noreferrer">
       <img src="https://img.shields.io/badge/Godbolt-Demo-blue?logo=compilerexplorer" alt="Try Online"/>
     </a>
   </p>
@@ -39,7 +39,7 @@ Perfect for building robust, maintainable command-line tools in modern C++.
 ## Online Interactive Demo
 
 Try argy in your browser using Compiler Explorer:
-<a href="https://godbolt.org/z/nnr3M8b13" target="_blank" rel="noopener noreferrer">Open Interavtive Demo on godbolt.org</a>
+<a href="https://godbolt.org/z/1WrjPjq8r" target="_blank" rel="noopener noreferrer">Open Interavtive Demo on godbolt.org</a>
 
 
 ## Features
