@@ -8,42 +8,42 @@ using namespace std;
 using namespace Argy;
 
 int main(int argc, char* argv[]) {
-    CliParser args(argc, argv);
+    CliParser cli(argc, argv);
     try {
         // Positional argument
-        args.add<string>("filename", "Input file");
+        cli.add<string>("filename", "Input file");
 
         // Optional argument with short and long names, help text, and default value
-        args.add<int>("-c", "--count", "Number of items", 10);
+        cli.add<int>("-c", "--count", "Number of items", 10);
 
         // Optional boolean flag
-        args.add<bool>("-v", "--verbose", "Enable verbose output", false);
+        cli.add<bool>("-v", "--verbose", "Enable verbose output", false);
 
         // Float argument
-        args.add<float>("-r", "--ratio", "Ratio value", 0.5f);
+        cli.add<float>("-r", "--ratio", "Ratio value", 0.5f);
 
         // Vector<int> argument
-        args.add<Ints>("-i", "--ids", "List of IDs", Ints{1, 2, 3});
+        cli.add<Ints>("-i", "--ids", "List of IDs", Ints{1, 2, 3});
 
         // Vector<float> argument
-        args.add<Floats>("-s", "--scores", "List of scores", Floats{0.1f, 0.2f, 0.3f});
+        cli.add<Floats>("-s", "--scores", "List of scores", Floats{0.1f, 0.2f, 0.3f});
 
         // Vector<bool> argument
-        args.add<Bools>("-f", "--flags", "List of flags", Bools{true, false, true});
+        cli.add<Bools>("-f", "--flags", "List of flags", Bools{true, false, true});
 
         // Vector<string> argument
-        args.add<Strings>("-t", "--tags", "List of tags", Strings{"alpha", "beta"});
+        cli.add<Strings>("-t", "--tags", "List of tags", Strings{"alpha", "beta"});
 
-        args.parse();
+        cli.parse();
 
-        auto count = args.get<int>("count");
-        auto filename = args.get<string>("filename");
-        auto verbose = args.get<bool>("verbose");
-        auto ratio = args.get<float>("ratio");
-        auto ids = args.get<Ints>("ids");
-        auto scores = args.get<Floats>("scores");
-        auto flags = args.get<Bools>("flags");
-        auto tags = args.get<Strings>("tags");
+        auto count = cli.get<int>("count");
+        auto filename = cli.get<string>("filename");
+        auto verbose = cli.get<bool>("verbose");
+        auto ratio = cli.get<float>("ratio");
+        auto ids = cli.get<Ints>("ids");
+        auto scores = cli.get<Floats>("scores");
+        auto flags = cli.get<Bools>("flags");
+        auto tags = cli.get<Strings>("tags");
 
         cout << "Filename: " << filename << "\n";
         cout << "Count: " << count << "\n";

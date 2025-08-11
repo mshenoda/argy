@@ -8,42 +8,42 @@ using namespace std;
 using namespace Argy;
 
 int main(int argc, char* argv[]) {
-    CliParser args(argc, argv);
+    CliParser cli(argc, argv);
     try {
         // Positional argument
-        args.addString("filename", "Input file");
+        cli.addString("filename", "Input file");
 
         // Optional argument with short and long names, help text, and default value
-        args.addInt("-c", "--count", "Number of items", 10);
+        cli.addInt("-c", "--count", "Number of items", 10);
 
         // Optional boolean flag
-        args.addBool("-v", "--verbose", "Enable verbose output", false);
+        cli.addBool("-v", "--verbose", "Enable verbose output", false);
 
         // Float argument
-        args.addFloat("-r", "--ratio", "Ratio value", 0.5f);
+        cli.addFloat("-r", "--ratio", "Ratio value", 0.5f);
 
         // Vector<int> argument
-        args.addInts("-i", "--ids", "List of IDs", Ints{1, 2, 3});
+        cli.addInts("-i", "--ids", "List of IDs", Ints{1, 2, 3});
 
         // Vector<float> argument
-        args.addFloats("-s", "--scores", "List of scores", Floats{0.1f, 0.2f, 0.3f});
+        cli.addFloats("-s", "--scores", "List of scores", Floats{0.1f, 0.2f, 0.3f});
 
         // Vector<bool> argument
-        args.addBools("-f", "--flags", "List of flags", Bools{true, false, true});
+        cli.addBools("-f", "--flags", "List of flags", Bools{true, false, true});
 
         // Vector<string> argument
-        args.addStrings("-t", "--tags", "List of tags", Strings{"alpha", "beta"});
+        cli.addStrings("-t", "--tags", "List of tags", Strings{"alpha", "beta"});
 
-        args.parse();
+        cli.parse();
 
-        auto count = args.getInt("count");
-        auto filename = args.getString("filename");
-        auto verbose = args.getBool("verbose");
-        auto ratio = args.getFloat("ratio");
-        auto ids = args.getInts("ids");
-        auto scores = args.getFloats("scores");
-        auto flags = args.getBools("flags");
-        auto tags = args.getStrings("tags");
+        auto count = cli.getInt("count");
+        auto filename = cli.getString("filename");
+        auto verbose = cli.getBool("verbose");
+        auto ratio = cli.getFloat("ratio");
+        auto ids = cli.getInts("ids");
+        auto scores = cli.getFloats("scores");
+        auto flags = cli.getBools("flags");
+        auto tags = cli.getStrings("tags");
 
         cout << "Filename: " << filename << "\n";
         cout << "Count: " << count << "\n";
