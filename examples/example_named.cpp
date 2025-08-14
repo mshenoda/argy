@@ -14,13 +14,18 @@ int main(int argc, char* argv[]) {
         cli.addString("filename", "Input file");
   
         // Optional argument with multiple aliases
-        cli.addInt({"-c", "--count", "-n", "--num"}, "Number of items", 10);
+        cli.addInt({"-c", "--count", "-n", "--num"}, "Number of items", 10).validate([](int value) {
+            if (value <= 0) throw InvalidValueException("count must be greater than 0");
+        });
 
         // Optional boolean flag
         cli.addBool({"-v", "--verbose"}, "Enable verbose output", false);
 
         // Float argument
         cli.addFloat({"-r", "--ratio"}, "Ratio value", 0.5f);
+        cli.setValidator("ratio", [](float value) {
+            if (value < 0.0f || value > 1.0f) throw InvalidValueException("ratio must be between 0 and 1");
+        });
 
         // Vector<int> argument
         cli.addInts({"-i", "--ids"}, "List of IDs", Ints{1, 2, 3});

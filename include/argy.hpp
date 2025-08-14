@@ -35,7 +35,7 @@
 #include <algorithm>
 
 namespace Argy {
-    
+
     /*
     * @class Exception
     * @brief Base class for all exceptions in the Argy library.
@@ -66,7 +66,7 @@ namespace Argy {
     };
 
     /**
-     * @class DuplicateArgumentException   
+     * @class DuplicateArgumentException
      * @brief Exception thrown when an argument is defined multiple times.
      */
     class DuplicateArgumentException : public DefineException {
@@ -153,6 +153,34 @@ namespace Argy {
      */
     class CliParser {
     public:
+        // Helper to deduce lambda argument type
+        template<typename T>
+        struct lambda_arg_type;
+        template<typename R, typename C, typename Arg>
+        struct lambda_arg_type<R(C::*)(Arg) const> { using type = Arg; };
+        template<typename F>
+        using lambda_arg_t = typename lambda_arg_type<decltype(&F::operator())>::type;
+
+        class ArgBuilder {
+        public:
+            ArgBuilder(CliParser& parser, const std::string& key)
+                : m_parser(parser), m_key(key) {}
+
+            template<typename F>
+            ArgBuilder& validate(F&& fn) {
+                using T = lambda_arg_t<F>;
+                m_parser.setValidator(m_key, std::forward<F>(fn));
+                return *this;
+            }
+
+            CliParser& done() { return m_parser; }
+
+        private:
+            CliParser& m_parser;
+            std::string m_key;
+        };
+
+    public:
         /**
          * @brief Constructs a CliParser and sets the default help handler.
          * @param argc Argument count from main().
@@ -179,6 +207,26 @@ namespace Argy {
             m_helpHandler = std::move(handler);
         }
 
+        /* @brief set validator for an argument
+         * @param name Argument name to set the validator for.
+         * @param fn Validation function that takes the argument value and throws InvalidValueException on failure.
+         *
+         * This allows you to enforce custom validation rules for argument values.
+         */
+        template<typename F>
+        void setValidator(const std::string& name, F&& fn) {
+            auto lookupIt = m_nameLookup.find(normalizeName(name));
+            if (lookupIt == m_nameLookup.end())
+                throw UnknownArgumentException("Argument not found for validator: " + name);
+            auto& arg = m_arguments.at(lookupIt->second);
+            using T = lambda_arg_t<F>;
+            arg.validator = [fn = std::forward<F>(fn), name](const Value& v) {
+                if (!std::holds_alternative<T>(v))
+                    throw InvalidValueException("Type mismatch in validator for argument '" + name + "'");
+                fn(std::get<T>(v));
+            };
+        }
+
         /**
          * @brief Add an argument to the parser with a single name.
          * @tparam T Argument type (int, float, bool, string, or vector thereof).
@@ -187,19 +235,19 @@ namespace Argy {
          * @param defaultValue Optional default value; if omitted, argument is required.
          */
         template<typename T>
-        CliParser& add(const char* name, const char* help, std::optional<T> defaultValue = std::nullopt) {
+        ArgBuilder add(const char* name, const char* help, std::optional<T> defaultValue = std::nullopt) {
             return add<T>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
 
-         /**
-         * @brief Add an argument to the parser with multiple names (aliases).
-         * @tparam T Argument type (int, float, bool, string, or vector thereof).
-         * @param names Vector of argument names (e.g. {"-c", "--count", "--cnt"}).
-         * @param help Help text for usage.
-         * @param defaultValue Optional default value; if omitted, argument is required.
-         */
+        /**
+        * @brief Add an argument to the parser with multiple names (aliases).
+        * @tparam T Argument type (int, float, bool, string, or vector thereof).
+        * @param names Vector of argument names (e.g. {"-c", "--count", "--cnt"}).
+        * @param help Help text for usage.
+        * @param defaultValue Optional default value; if omitted, argument is required.
+        */
         template<typename T>
-        CliParser& add(const std::vector<std::string>& names, const std::string& help = "", std::optional<T> defaultValue = std::nullopt) {
+        ArgBuilder add(const std::vector<std::string>& names, const std::string& help, std::optional<T> defaultValue = std::nullopt) {
             std::vector<std::string> cleanNames;
             bool isPositional = true;
             std::vector<std::string> shortNames, longNames;
@@ -208,11 +256,13 @@ namespace Argy {
                     if (n.size() <= 2) throw InvalidArgumentException("longName must not be empty after --");
                     longNames.push_back(n.substr(2));
                     isPositional = false;
-                } else if (startsWith(n, "-")) {
+                }
+                else if (startsWith(n, "-")) {
                     if (n.size() <= 1) throw InvalidArgumentException("shortName must not be empty after -");
                     shortNames.push_back(n.substr(1));
                     isPositional = false;
-                } else {
+                }
+                else {
                     longNames.push_back(n);
                 }
                 cleanNames.push_back(normalizeName(n));
@@ -225,7 +275,7 @@ namespace Argy {
             for (const auto& sn : shortNames) {
                 if (sn == "h") throw ReservedArgumentException("Cannot redefine built-in -h argument");
             }
-            
+
             // Check for duplicates across all existing aliases
             for (const auto& [k, v] : m_arguments) {
                 for (const auto& existing : v.names) {
@@ -241,7 +291,7 @@ namespace Argy {
             // Use first provided normalized name as canonical key
             std::string key = cleanNames.empty() ? std::string() : cleanNames[0];
             // Store aliases (normalized names) and original classification
-            Arg arg{cleanNames, shortNames, longNames, help, isRequired, type, val, Value{}, isPositional};
+            Arg arg{ cleanNames, shortNames, longNames, help, isRequired, type, val, Value{}, isPositional };
             m_arguments[key] = arg;
             // Register all forms in lookup map
             for (const auto& cn : cleanNames) {
@@ -259,57 +309,57 @@ namespace Argy {
             if (isPositional) {
                 m_positionalOrder.push_back(key);
             }
-            return *this;
+            return ArgBuilder(*this, key);
         }
 
         // Convenience overloads for single name
-        CliParser& addString(const char* name, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) {
+        ArgBuilder addString(const char* name, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) {
             return add<std::string>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
-        CliParser& addInt(const char* name, const std::string& help, std::optional<int> defaultValue = std::nullopt) {
+        ArgBuilder addInt(const char* name, const std::string& help, std::optional<int> defaultValue = std::nullopt) {
             return add<int>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
-        CliParser& addFloat(const char* name, const std::string& help, std::optional<float> defaultValue = std::nullopt) {
+        ArgBuilder addFloat(const char* name, const std::string& help, std::optional<float> defaultValue = std::nullopt) {
             return add<float>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
-        CliParser& addBool(const char* name, const std::string& help, std::optional<bool> defaultValue = false) {
+        ArgBuilder addBool(const char* name, const std::string& help, std::optional<bool> defaultValue = false) {
             return add<bool>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
-        CliParser& addStrings(const char* name, const std::string& help, std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
+        ArgBuilder addStrings(const char* name, const std::string& help, std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
             return add<std::vector<std::string>>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
-        CliParser& addInts(const char* name, const std::string& help, std::optional<std::vector<int>> defaultValue = std::nullopt) {
+        ArgBuilder addInts(const char* name, const std::string& help, std::optional<std::vector<int>> defaultValue = std::nullopt) {
             return add<std::vector<int>>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
-        CliParser& addFloats(const char* name, const std::string& help, std::optional<std::vector<float>> defaultValue = std::nullopt) {
+        ArgBuilder addFloats(const char* name, const std::string& help, std::optional<std::vector<float>> defaultValue = std::nullopt) {
             return add<std::vector<float>>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
-        CliParser& addBools(const char* name, const std::string& help, std::optional<std::vector<bool>> defaultValue = std::nullopt) {
+        ArgBuilder addBools(const char* name, const std::string& help, std::optional<std::vector<bool>> defaultValue = std::nullopt) {
             return add<std::vector<bool>>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
         // Convenience methods for adding arguments of specific types using vector<string> API
-        CliParser& addString(const std::vector<std::string>& names, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) {
+        ArgBuilder addString(const std::vector<std::string>& names, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) {
             return add<std::string>(names, help, defaultValue);
         }
-        CliParser& addInt(const std::vector<std::string>& names, const std::string& help, std::optional<int> defaultValue = std::nullopt) {
+        ArgBuilder addInt(const std::vector<std::string>& names, const std::string& help, std::optional<int> defaultValue = std::nullopt) {
             return add<int>(names, help, defaultValue);
         }
-        CliParser& addFloat(const std::vector<std::string>& names, const std::string& help, std::optional<float> defaultValue = std::nullopt) {
+        ArgBuilder addFloat(const std::vector<std::string>& names, const std::string& help, std::optional<float> defaultValue = std::nullopt) {
             return add<float>(names, help, defaultValue);
         }
-        CliParser& addBool(const std::vector<std::string>& names, const std::string& help, std::optional<bool> defaultValue = false) {
+        ArgBuilder addBool(const std::vector<std::string>& names, const std::string& help, std::optional<bool> defaultValue = false) {
             return add<bool>(names, help, defaultValue);
         }
-        CliParser& addStrings(const std::vector<std::string>& names, const std::string& help, std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
+        ArgBuilder addStrings(const std::vector<std::string>& names, const std::string& help, std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
             return add<std::vector<std::string>>(names, help, defaultValue);
         }
-        CliParser& addInts(const std::vector<std::string>& names, const std::string& help, std::optional<std::vector<int>> defaultValue = std::nullopt) {
+        ArgBuilder addInts(const std::vector<std::string>& names, const std::string& help, std::optional<std::vector<int>> defaultValue = std::nullopt) {
             return add<std::vector<int>>(names, help, defaultValue);
         }
-        CliParser& addFloats(const std::vector<std::string>& names, const std::string& help, std::optional<std::vector<float>> defaultValue = std::nullopt) {
+        ArgBuilder addFloats(const std::vector<std::string>& names, const std::string& help, std::optional<std::vector<float>> defaultValue = std::nullopt) {
             return add<std::vector<float>>(names, help, defaultValue);
         }
-        CliParser& addBools(const std::vector<std::string>& names, const std::string& help, std::optional<std::vector<bool>> defaultValue = std::nullopt) {
+        ArgBuilder addBools(const std::vector<std::string>& names, const std::string& help, std::optional<std::vector<bool>> defaultValue = std::nullopt) {
             return add<std::vector<bool>>(names, help, defaultValue);
         }
 
@@ -351,8 +401,8 @@ namespace Argy {
                     auto it = std::find_if(m_arguments.begin(), m_arguments.end(), [&](const auto& pair) {
                         const Arg& a = pair.second;
                         return std::find(a.names.begin(), a.names.end(), normKey) != a.names.end() ||
-                               std::find(a.names.begin(), a.names.end(), "--" + normKey) != a.names.end();
-                    });
+                            std::find(a.names.begin(), a.names.end(), "--" + normKey) != a.names.end();
+                        });
                     if (it == m_arguments.end()) throw UnknownArgumentException("Unknown argument: --" + normKey);
                     currentKey = it->first;
                     Arg& arg = it->second;
@@ -364,13 +414,14 @@ namespace Argy {
                         arg.parsedValue = true;
                         currentKey.clear();
                     }
-                } else if (startsWith(token, "-") && token.size() > 1) {
+                }
+                else if (startsWith(token, "-") && token.size() > 1) {
                     std::string normKey = token.substr(1);
                     // Find by shortName (with or without dash)
                     auto it = std::find_if(m_arguments.begin(), m_arguments.end(), [&](const auto& pair) {
                         const Arg& a = pair.second;
                         return std::find(a.names.begin(), a.names.end(), normKey) != a.names.end() ||
-                               std::find(a.names.begin(), a.names.end(), "-" + normKey) != a.names.end();
+                            std::find(a.names.begin(), a.names.end(), "-" + normKey) != a.names.end();
                     });
                     if (it == m_arguments.end()) throw UnknownArgumentException("Unknown short argument: -" + normKey);
                     currentKey = it->first;
@@ -383,17 +434,20 @@ namespace Argy {
                         arg.parsedValue = true;
                         currentKey.clear();
                     }
-                } else if (!currentKey.empty()) {
+                }
+                else if (!currentKey.empty()) {
                     Arg& arg = m_arguments.at(currentKey);
                     if (isListType(arg.type)) {
                         if (std::holds_alternative<std::vector<std::string>>(arg.parsedValue)) {
                             std::get<std::vector<std::string>>(arg.parsedValue).push_back(token);
                         }
-                    } else {
+                    }
+                    else {
                         arg.parsedValue = token;
                         currentKey.clear();
                     }
-                } else {
+                }
+                else {
                     // Positional argument
                     if (positionalIndex >= m_positionalOrder.size())
                         throw UnexpectedPositionalArgumentException("Unexpected positional argument: " + token);
@@ -403,17 +457,19 @@ namespace Argy {
                 }
             }
 
-            // Validate required, set defaults, and convert types
+            // Validate required, set defaults, convert types, and run validator
             for (auto& [key, argument] : m_arguments) {
                 if (!isListType(argument.type) && std::holds_alternative<std::monostate>(argument.parsedValue)) {
                     if (argument.required)
                         throw MissingArgumentException("Missing required argument: " + (argument.names.empty() ? key : argument.names[0]));
                     argument.parsedValue = argument.defaultValue;
-                } else if (isListType(argument.type) && std::holds_alternative<std::monostate>(argument.parsedValue)) {
+                }
+                else if (isListType(argument.type) && std::holds_alternative<std::monostate>(argument.parsedValue)) {
                     if (argument.required)
                         throw MissingArgumentException("Missing required list argument: " + (argument.names.empty() ? key : argument.names[0]));
                     argument.parsedValue = argument.defaultValue;
-                } else {
+                }
+                else {
                     // Convert single value types
                     if (!isListType(argument.type) && std::holds_alternative<std::string>(argument.parsedValue)) {
                         const std::string& val = std::get<std::string>(argument.parsedValue);
@@ -434,9 +490,11 @@ namespace Argy {
                             default:
                                 break;
                             }
-                        } catch (const std::invalid_argument& e) {
+                        }
+                        catch (const std::invalid_argument& e) {
                             throw InvalidValueException(std::string("Invalid value for argument '") + (argument.names.empty() ? key : argument.names[0]) + "': " + val + " (" + e.what() + ")");
-                        } catch (const std::out_of_range& e) {
+                        }
+                        catch (const std::out_of_range& e) {
                             throw InvalidValueException(std::string("Value out of range for argument '") + (argument.names.empty() ? key : argument.names[0]) + "': " + val + " (" + e.what() + ")");
                         }
                     }
@@ -469,12 +527,18 @@ namespace Argy {
                             default:
                                 break;
                             }
-                        } catch (const std::invalid_argument& e) {
+                        }
+                        catch (const std::invalid_argument& e) {
                             throw InvalidValueException("Invalid value in list for argument '" + (argument.names.empty() ? key : argument.names[0]) + "'" + std::string(" (") + e.what() + ")");
-                        } catch (const std::out_of_range& e) {
+                        }
+                        catch (const std::out_of_range& e) {
                             throw InvalidValueException("Value out of range in list for argument '" + (argument.names.empty() ? key : argument.names[0]) + "'" + std::string(" (") + e.what() + ")");
                         }
                     }
+                }
+                // Run validator if present
+                if (argument.validator) {
+                    argument.validator(argument.parsedValue);
                 }
             }
         }
@@ -615,30 +679,34 @@ namespace Argy {
                     // Prefer showing short and long forms if available
                     if (!argument.shortForms.empty() && !argument.longForms.empty()) {
                         opt = "-" + argument.shortForms[0] + ", --" + argument.longForms[0];
-                    } else if (!argument.shortForms.empty()) {
+                    }
+                    else if (!argument.shortForms.empty()) {
                         opt = "-" + argument.shortForms[0];
-                    } else if (!argument.longForms.empty()) {
+                    }
+                    else if (!argument.longForms.empty()) {
                         opt = "    --" + argument.longForms[0]; // 4 spaces for alignment
-                    } else if (!argument.names.empty()) {
+                    }
+                    else if (!argument.names.empty()) {
                         // fallback to first registered name
                         std::string n = argument.names[0];
                         if (startsWith(n, "--")) opt = "    " + n; else if (startsWith(n, "-")) opt = n; else opt = n;
-                    } else {
+                    }
+                    else {
                         opt = "";
                     }
                     // Determine value type
                     std::string valueType;
                     bool isBool = false;
                     switch (argument.type) {
-                        case ArgType::Int: valueType = "<int>"; break;
-                        case ArgType::Float: valueType = "<float>"; break;
-                        case ArgType::Bool: valueType = ""; isBool = true; break;
-                        case ArgType::String: valueType = "<string>"; break;
-                        case ArgType::IntList: valueType = "<int[]>"; break;
-                        case ArgType::FloatList: valueType = "<float[]>"; break;
-                        case ArgType::BoolList: valueType = "<bool[]>"; break;
-                        case ArgType::StringList: valueType = "<string[]>"; break;
-                        default: valueType = "<value>"; break;
+                    case ArgType::Int: valueType = "<int>"; break;
+                    case ArgType::Float: valueType = "<float>"; break;
+                    case ArgType::Bool: valueType = ""; isBool = true; break;
+                    case ArgType::String: valueType = "<string>"; break;
+                    case ArgType::IntList: valueType = "<int[]>"; break;
+                    case ArgType::FloatList: valueType = "<float[]>"; break;
+                    case ArgType::BoolList: valueType = "<bool[]>"; break;
+                    case ArgType::StringList: valueType = "<string[]>"; break;
+                    default: valueType = "<value>"; break;
                     }
                     if (opt.size() > maxOptNameLen) maxOptNameLen = opt.size();
                     optNames.push_back(opt);
@@ -670,7 +738,8 @@ namespace Argy {
                         std::cout << " " << gray << valueType << reset;
                         size_t padType = maxTypeLen > valueType.size() ? maxTypeLen - valueType.size() : 0;
                         std::cout << std::string(padType, ' ');
-                    } else {
+                    }
+                    else {
                         std::cout << std::string(maxTypeLen + 1, ' '); // +1 for space before type
                     }
                     // Help message starts here
@@ -721,7 +790,7 @@ namespace Argy {
 
     private:
         bool m_useColors = true;
-        
+
         /**
          * @brief Variant to hold any supported argument value type.
          *
@@ -767,6 +836,7 @@ namespace Argy {
             Value defaultValue;     ///< Default value if any.
             Value parsedValue;     ///< Parsed value if any.
             bool positional{ false }; ///< True if this is a positional argument.
+            std::function<void(const Value&)> validator; ///< Optional value validator
         };
 
 
@@ -782,14 +852,14 @@ namespace Argy {
         static bool startsWith(const std::string& str, const std::string& prefix) {
             return str.size() >= prefix.size() && str.compare(0, prefix.size(), prefix) == 0;
         }
-        
+
         // normalize argument name (strip leading dashes)
         static std::string normalizeName(const std::string& name) {
             if (startsWith(name, "--")) return name.substr(2);
             if (startsWith(name, "-")) return name.substr(1);
             return name;
         }
-        
+
         /**
          * @brief Converts Value variant to string for defaults and printing.
          * @param value The Value to convert.
@@ -879,6 +949,6 @@ namespace Argy {
             else if constexpr (std::is_same_v<T, std::vector<bool>>) return ArgType::BoolList;
             else if constexpr (std::is_same_v<T, std::vector<std::string>>) return ArgType::StringList;
             else static_assert(sizeof(T) == 0, "Unsupported argument type");
-        }       
+        }
     };
 }
