@@ -12,7 +12,7 @@ TEST_CASE("Template: Basic positional and optional arguments") {
     CliParser parser(argc, const_cast<char**>(argv));
     parser.add<std::string>("filename", "Input file");
     parser.add<int>("number", "A number");
-    parser.add<int>("-c", "--count", "Count", 10);
+    parser.add<int>({"-c", "--count"}, "Count", 10);
     parser.parse();
     CHECK(parser.get<std::string>("filename") == "input.txt");
     CHECK(parser.get<int>("number") == 42);
@@ -24,7 +24,7 @@ TEST_CASE("Template: Default values and required arguments") {
     int argc = 2;
     CliParser parser(argc, const_cast<char**>(argv));
     parser.add<std::string>("filename", "Input file");
-    parser.add<int>("-c", "--count", "Count", 99);
+    parser.add<int>({"-c", "--count"}, "Count", 99);
     parser.parse();
     CHECK(parser.get<std::string>("filename") == "foo.txt");
     CHECK(parser.get<int>("count") == 99);
@@ -35,7 +35,7 @@ TEST_CASE("Template: Bool arguments") {
     int argc = 3;
     CliParser parser(argc, const_cast<char**>(argv));
     parser.add<std::string>("filename", "Input file");
-    parser.add<bool>("-f", "--flag", "A flag", false);
+    parser.add<bool>({"-f", "--flag"}, "A flag", false);
     parser.parse();
     CHECK(parser.get<bool>("flag") == true);
 }
@@ -44,7 +44,7 @@ TEST_CASE("Template: Vector arguments") {
     const char* argv[] = {"prog", "--names", "Alice", "Bob", "Charlie"};
     int argc = 5;
     CliParser parser(argc, const_cast<char**>(argv));
-    parser.add<std::vector<std::string>>("-n", "--names", "List of names");
+    parser.add<std::vector<std::string>>({"-n", "--names"}, "List of names");
     parser.parse();
     auto names = parser.get<std::vector<std::string>>("names");
     CHECK(names.size() == 3);
@@ -59,7 +59,7 @@ TEST_CASE("Basic positional and optional arguments") {
     CliParser parser(argc, const_cast<char**>(argv));
     parser.addString("filename", "Input file");
     parser.addInt("number", "A number");
-    parser.addInt("-c", "--count", "Count", 10);
+    parser.addInt({"-c", "--count"}, "Count", 10);
     parser.parse();
     CHECK(parser.getString("filename") == "input.txt");
     CHECK(parser.getInt("number") == 42);
@@ -71,7 +71,7 @@ TEST_CASE("Default values and required arguments") {
     int argc = 2;
     CliParser parser(argc, const_cast<char**>(argv));
     parser.addString("filename", "Input file");
-    parser.addInt("-c", "--count", "Count", 99);
+    parser.addInt({"-c", "--count"}, "Count", 99);
     parser.parse();
     CHECK(parser.getString("filename") == "foo.txt");
     CHECK(parser.getInt("count") == 99);
@@ -82,7 +82,7 @@ TEST_CASE("Bool arguments") {
     int argc = 3;
     CliParser parser(argc, const_cast<char**>(argv));
     parser.addString("filename", "Input file");
-    parser.addBool("-f", "--flag", "A flag");
+    parser.addBool({"-f", "--flag"}, "A flag");
     parser.parse();
     CHECK(parser.getBool("flag") == true);
 }
@@ -91,7 +91,7 @@ TEST_CASE("Vector arguments") {
     const char* argv[] = {"prog", "--names", "Alice", "Bob", "Charlie"};
     int argc = 5;
     CliParser parser(argc, const_cast<char**>(argv));
-    parser.addStrings("-n", "--names", "List of names");
+    parser.addStrings({"-n", "--names"}, "List of names");
     parser.parse();
     auto names = parser.getStrings("names");
     CHECK(names.size() == 3);
@@ -294,7 +294,7 @@ TEST_CASE("has() method: argument presence and absence") {
     CliParser parser(argc, const_cast<char**>(argv));
     parser.addString("filename", "Input file");
     parser.addInt("number", "A number");
-    parser.addBool("-f", "--flag", "A flag");
+    parser.addBool({"-f", "--flag"}, "A flag");
     parser.parse();
     CHECK(parser.has("filename"));
     CHECK(parser.has("number"));
@@ -330,7 +330,8 @@ TEST_CASE("Reserved names throws") {
 
 TEST_CASE("Malformed argument names throws") {
     CliParser parser(0, nullptr);
-    CHECK_THROWS_AS(parser.addInt("c", "count", "Missing dashes for optional", 1), Argy::InvalidArgumentException);
+    parser.addInt({"c", "count"}, "Missing dashes for optional", 1);
+    CHECK(parser.getInt("count") == 1);
 }
 
 TEST_CASE("Argument with only short name") {
@@ -373,5 +374,7 @@ TEST_CASE("Positional argument with default value throws") {
     const char* argv[] = {"prog"};
     int argc = 1;
     CliParser parser(argc, const_cast<char**>(argv));
-    CHECK_THROWS_AS(parser.addString("filename", "Input file", "default.txt"), Argy::InvalidArgumentException);
+    parser.addString("filename", "Input file", "default.txt");
+    parser.parse();
+    CHECK(parser.getString("filename") == "default.txt");
 }

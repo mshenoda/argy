@@ -22,7 +22,7 @@
     <img src="https://img.shields.io/github/actions/workflow/status/mshenoda/argy/ci-freebsd.yml?label=FreeBSD&logo=freebsd" alt="FreeBSD Build"/>
     </a>
   <p align="center">
-    <a href="https://godbolt.org/z/1WrjPjq8r" target="_blank" rel="noopener noreferrer">
+    <a href="https://godbolt.org/z/P8xj3xfYW" target="_blank" rel="noopener noreferrer">
       <img src="https://img.shields.io/badge/Godbolt-Demo-blue?logo=compilerexplorer" alt="Try Online"/>
     </a>
   </p>
@@ -42,7 +42,7 @@ Perfect for building robust, maintainable command-line tools in modern C++.
 ## Online Interactive Demo
 
 Try argy in your browser using Compiler Explorer:
-<a href="https://godbolt.org/z/1WrjPjq8r" target="_blank" rel="noopener noreferrer">Open Interavtive Demo on godbolt.org</a>
+<a href="https://godbolt.org/z/P8xj3xfYW" target="_blank" rel="noopener noreferrer">Open Interavtive Demo on godbolt.org</a>
 
 
 ## Features
@@ -89,8 +89,8 @@ Define arguments and access them with the template API:
 #include "argy.hpp"
 Argy::CliParser cli(argc, argv);
 cli.add<std::string>("image", "Path to input image");            // Positional argument
-cli.add<int>("-n", "--num-classes", "Number of classes", 80);  // Named int argument, with default
-cli.add<bool>("-s", "--save-vis", "Save visualization images"); // Named bool argument
+cli.add<int>({"-n", "--num-classes"}, "Number of classes", 80);  // Named int argument, with default
+cli.add<bool>({"-s", "--save-vis"}, "Save visualization images"); // Named bool argument
 ```
 
 ### Convenience Methods
@@ -98,8 +98,8 @@ Use named methods for clarity:
 ```cpp
 Argy::CliParser cli(argc, argv);
 cli.addString("image", "Path to input image");   // Positional argument
-cli.addInt("-n", "--num-classes", "Number of classes", 80);  // Named int argument, with default
-cli.addBool("-s", "--save-vis", "Save visualization images"); // Named bool argument
+cli.addInt({"-n", "--num-classes"}, "Number of classes", 80);  // Named int argument, with default
+cli.addBool({"-s", "--save-vis"}, "Save visualization images"); // Named bool argument
 ```
 
 ### Parsing and Accessing Arguments
@@ -131,12 +131,12 @@ int main(int argc, char* argv[]) {
   try {
     // add arguments using template methods
     cli.add<std::string>("image", "Path to input image");
-    cli.add<std::string>("-m", "--model", "Path to model");
-    cli.add<float>("-t", "--threshold", "Detection threshold", 0.5f);
-    cli.add<bool>("-v", "--visualize", "Visualize results");
-    cli.add<Argy::Ints>("-i", "--input-size", "Input size", Argy::Ints{640, 480});
-    cli.add<std::string>("-o", "--output", "Output directory", "results/");
-    cli.add<int>("-n", "--num-classes", "Number of classes", 80);
+    cli.add<std::string>({"-m", "--model"}, "Path to model");
+    cli.add<float>({"-t", "--threshold"}, "Detection threshold", 0.5f);
+    cli.add<bool>({"-v", "--visualize", "-s", "--show"}, "Visualize results"); // adding argument with aliases 
+    cli.add<Argy::Ints>({"-i", "--input-size"}, "Input size", Argy::Ints{640, 480});
+    cli.add<std::string>({"-o", "--output"}, "Output directory", "results/");
+    cli.add<int>({"-n", "--num-classes"}, "Number of classes", 80);
 
     // parse arguments
     cli.parse();
@@ -173,12 +173,12 @@ int main(int argc, char* argv[]) {
   try {
     // add arguments
     cli.addString("image", "Path to input image");
-    cli.addString("-m","--model", "Path to model");
-    cli.addFloat("-t","--threshold", "Detection threshold", 0.5f);
-    cli.addBool("-v", "--visualize", "Visualize results");
-    cli.addInts("-i","--input-size", "Input size", Argy::Ints{640, 480});
-    cli.addString("-o","--output", "Output directory", "results/");
-    cli.addInt("-n", "--num-classes", "Number of classes", 80);
+    cli.addString({"-m","--model"}, "Path to model");
+    cli.addFloat({"-t","--threshold"}, "Detection threshold", 0.5f);
+    cli.addBool({"-v", "--visualize", "-s", "--show"}, "Visualize results"); // adding argument with multiple aliases 
+    cli.addInts({"-i","--input-size"}, "Input size", Argy::Ints{640, 480});
+    cli.addString({"-o","--output"}, "Output directory", "results/");
+    cli.addInt({"-n", "--num-classes"}, "Number of classes", 80);
 
     // parse arguments
     cli.parse();

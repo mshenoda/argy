@@ -10,35 +10,35 @@ using namespace Argy;
 int main(int argc, char* argv[]) {
     CliParser cli(argc, argv);
     try {
+
         // Positional argument
         cli.add<string>("filename", "Input file");
 
-        // Optional argument with short and long names, help text, and default value
-        cli.add<int>("-c", "--count", "Number of items", 10);
+        // Optional argument with multiple aliases
+        cli.add<int>({"-c", "--count", "-n", "--num"}, "Number of items");
 
-        // Optional boolean flag
-        cli.add<bool>("-v", "--verbose", "Enable verbose output", false);
+        cli.add<bool>({"-v", "--visualize", "-s", "--show"}, "Visualize results"); // adding argument with multiple aliases 
 
-        // Float argument
-        cli.add<float>("-r", "--ratio", "Ratio value", 0.5f);
+        // Float argument with aliases
+        cli.add<float>({"-r", "--ratio"}, "Ratio value", 0.5f);
 
         // Vector<int> argument
-        cli.add<Ints>("-i", "--ids", "List of IDs", Ints{1, 2, 3});
+        cli.add<Ints>({"-i", "--ids"}, "List of IDs", Ints{1, 2, 3});
 
         // Vector<float> argument
-        cli.add<Floats>("-s", "--scores", "List of scores", Floats{0.1f, 0.2f, 0.3f});
+        cli.add<Floats>({"-ss", "--scores"}, "List of scores", Floats{0.1f, 0.2f, 0.3f});
 
         // Vector<bool> argument
-        cli.add<Bools>("-f", "--flags", "List of flags", Bools{true, false, true});
+        cli.add<Bools>({"-f", "--flags"}, "List of flags", Bools{true, false, true});
 
         // Vector<string> argument
-        cli.add<Strings>("-t", "--tags", "List of tags", Strings{"alpha", "beta"});
+        cli.add<Strings>({"-t", "--tags"}, "List of tags", Strings{"alpha", "beta"});
 
         cli.parse();
 
         auto count = cli.get<int>("count");
         auto filename = cli.get<string>("filename");
-        auto verbose = cli.get<bool>("verbose");
+        auto visualize = cli.get<bool>("show");
         auto ratio = cli.get<float>("ratio");
         auto ids = cli.get<Ints>("ids");
         auto scores = cli.get<Floats>("scores");
@@ -47,7 +47,7 @@ int main(int argc, char* argv[]) {
 
         cout << "Filename: " << filename << "\n";
         cout << "Count: " << count << "\n";
-        cout << "Verbose: " << (verbose ? "true" : "false") << "\n";
+        cout << "Visualize: " << (visualize ? "true" : "false") << "\n";
         cout << "Ratio: " << ratio << "\n";
         cout << "IDs: ";
         for (auto v : ids) cout << v << " ";

@@ -12,31 +12,31 @@ int main(int argc, char* argv[]) {
     try {
         // Positional argument
         cli.addString("filename", "Input file");
-
-        // Optional argument with short and long names, help text, and default value
-        cli.addInt("-c", "--count", "Number of items", 10);
+  
+        // Optional argument with multiple aliases
+        cli.addInt({"-c", "--count", "-n", "--num"}, "Number of items", 10);
 
         // Optional boolean flag
-        cli.addBool("-v", "--verbose", "Enable verbose output", false);
+        cli.addBool({"-v", "--verbose"}, "Enable verbose output", false);
 
         // Float argument
-        cli.addFloat("-r", "--ratio", "Ratio value", 0.5f);
+        cli.addFloat({"-r", "--ratio"}, "Ratio value", 0.5f);
 
         // Vector<int> argument
-        cli.addInts("-i", "--ids", "List of IDs", Ints{1, 2, 3});
+        cli.addInts({"-i", "--ids"}, "List of IDs", Ints{1, 2, 3});
 
         // Vector<float> argument
-        cli.addFloats("-s", "--scores", "List of scores", Floats{0.1f, 0.2f, 0.3f});
+        cli.addFloats({"-s", "--scores"}, "List of scores", Floats{0.1f, 0.2f, 0.3f});
 
         // Vector<bool> argument
-        cli.addBools("-f", "--flags", "List of flags", Bools{true, false, true});
+        cli.addBools({"-f", "--flags"}, "List of flags", Bools{true, false, true});
 
         // Vector<string> argument
-        cli.addStrings("-t", "--tags", "List of tags", Strings{"alpha", "beta"});
+        cli.addStrings({"-t", "--tags"}, "List of tags", Strings{"alpha", "beta"});
 
         cli.parse();
 
-        auto count = cli.getInt("count");
+        auto count = cli.getInt("n");
         auto filename = cli.getString("filename");
         auto verbose = cli.getBool("verbose");
         auto ratio = cli.getFloat("ratio");

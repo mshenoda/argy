@@ -180,184 +180,138 @@ namespace Argy {
         }
 
         /**
-         * @brief Add an argument to the parser (positional or optional).
+         * @brief Add an argument to the parser with a single name.
          * @tparam T Argument type (int, float, bool, string, or vector thereof).
-         * @param name Argument name (e.g. "--count" or "filename").
+         * @param name Argument name (e.g. "filename", "-c", "--count").
          * @param help Help text for usage.
          * @param defaultValue Optional default value; if omitted, argument is required.
-         * @throws std::runtime_error if attempting to override reserved names --help or -h.
-         *
-         * If the name starts with dashes, it is treated as an optional argument; otherwise, it is positional.
          */
         template<typename T>
-        CliParser& add(const std::string& name, const std::string& help = "", std::optional<T> defaultValue = std::nullopt) {
-            std::string cleanName = name;
+        CliParser& add(const char* name, const char* help, std::optional<T> defaultValue = std::nullopt) {
+            return add<T>(std::vector<std::string>{std::string(name)}, help, defaultValue);
+        }
+
+         /**
+         * @brief Add an argument to the parser with multiple names (aliases).
+         * @tparam T Argument type (int, float, bool, string, or vector thereof).
+         * @param names Vector of argument names (e.g. {"-c", "--count", "--cnt"}).
+         * @param help Help text for usage.
+         * @param defaultValue Optional default value; if omitted, argument is required.
+         */
+        template<typename T>
+        CliParser& add(const std::vector<std::string>& names, const std::string& help = "", std::optional<T> defaultValue = std::nullopt) {
+            std::vector<std::string> cleanNames;
             bool isPositional = true;
-            std::string shortName, longName;
-
-            // Enforce naming conventions BEFORE stripping dashes
-            if (startsWith(cleanName, "--")) {
-                if (cleanName.size() <= 2)
-                    throw InvalidArgumentException("longName must not be empty after --");
-            }
-            else if (startsWith(cleanName, "-")) {
-                if (cleanName.size() <= 1)
-                    throw InvalidArgumentException("shortName must not be empty after -");
-            }
-
-            // Always strip leading dashes for single-name methods
-            if (startsWith(cleanName, "--")) {
-                longName = cleanName.substr(2);
-                isPositional = false;
-            }
-            else if (startsWith(cleanName, "-")) {
-                shortName = cleanName.substr(1);
-                isPositional = false;
-            } else {
-                longName = cleanName;
-                if(defaultValue.has_value()) {
-                    throw InvalidArgumentException("Positional arguments cannot have default values");
+            std::vector<std::string> shortNames, longNames;
+            for (const auto& n : names) {
+                if (startsWith(n, "--")) {
+                    if (n.size() <= 2) throw InvalidArgumentException("longName must not be empty after --");
+                    longNames.push_back(n.substr(2));
+                    isPositional = false;
+                } else if (startsWith(n, "-")) {
+                    if (n.size() <= 1) throw InvalidArgumentException("shortName must not be empty after -");
+                    shortNames.push_back(n.substr(1));
+                    isPositional = false;
+                } else {
+                    longNames.push_back(n);
                 }
+                cleanNames.push_back(normalizeName(n));
             }
 
             // Prevent overriding help flags
-            if (longName == "help" || shortName == "h") {
-                throw ReservedArgumentException("Cannot redefine built-in --help/-h argument");
+            for (const auto& ln : longNames) {
+                if (ln == "help") throw ReservedArgumentException("Cannot redefine built-in --help argument");
             }
-
-            // Check for duplicates
+            for (const auto& sn : shortNames) {
+                if (sn == "h") throw ReservedArgumentException("Cannot redefine built-in -h argument");
+            }
+            
+            // Check for duplicates across all existing aliases
             for (const auto& [k, v] : m_arguments) {
-                if (!longName.empty() && v.longName == longName)
-                    throw DuplicateArgumentException("Duplicate longName: " + longName);
-                if (!shortName.empty() && v.shortName == shortName)
-                    throw DuplicateArgumentException("Duplicate shortName: " + shortName);
+                for (const auto& existing : v.names) {
+                    for (const auto& cand : cleanNames) {
+                        if (existing == cand) throw DuplicateArgumentException("Duplicate argument name: " + cand);
+                    }
+                }
             }
-
             ArgType type = deduceArgType<T>();
             Value val = defaultValue ? Value(*defaultValue) : Value{};
             bool isRequired = !defaultValue.has_value();
-            // Boolean flags should never be required
-            if constexpr (std::is_same_v<T, bool>) {
-                isRequired = false;
-            }
-
-            Arg arg{shortName, longName, help, isRequired, type, val, Value{}, isPositional};
-            std::string key = isPositional ? longName : (longName.empty() ? shortName : longName);
+            if constexpr (std::is_same_v<T, bool>) { isRequired = false; }
+            // Use first provided normalized name as canonical key
+            std::string key = cleanNames.empty() ? std::string() : cleanNames[0];
+            // Store aliases (normalized names) and original classification
+            Arg arg{cleanNames, shortNames, longNames, help, isRequired, type, val, Value{}, isPositional};
             m_arguments[key] = arg;
             // Register all forms in lookup map
-            if (!longName.empty()) {
-                m_nameLookup[normalizeName(longName)] = key;
-                m_nameLookup[longName] = key;
-                if (!longName.empty()) {
-                    m_nameLookup["--" + longName] = key;
-                }
+            for (const auto& cn : cleanNames) {
+                m_nameLookup[cn] = key;
             }
-            if (!shortName.empty()) {
-                m_nameLookup[normalizeName(shortName)] = key;
-                m_nameLookup[shortName] = key;
-                if (!shortName.empty()) {
-                    m_nameLookup["-" + shortName] = key;
-                }
+            // Also register dashed forms for display/lookup convenience
+            for (const auto& ln : longNames) {
+                m_nameLookup[ln] = key;
+                m_nameLookup["--" + ln] = key;
+            }
+            for (const auto& sn : shortNames) {
+                m_nameLookup[sn] = key;
+                m_nameLookup["-" + sn] = key;
             }
             if (isPositional) {
-                m_nameLookup[normalizeName(longName)] = key;
-                m_nameLookup[longName] = key;
                 m_positionalOrder.push_back(key);
             }
             return *this;
         }
 
-        CliParser& add(const std::string& name, const std::string& help, const std::string& defaultValue) {
-            return add<std::string>(std::string(name), std::string(help), std::optional<std::string>(std::string(defaultValue)));
+        // Convenience overloads for single name
+        CliParser& addString(const char* name, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) {
+            return add<std::string>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
-
-        CliParser& add(const char* name, const char* help, const char* defaultValue) {  
-            add<std::string>(std::string(name), std::string(help), std::optional<std::string>(std::string(defaultValue)));
+        CliParser& addInt(const char* name, const std::string& help, std::optional<int> defaultValue = std::nullopt) {
+            return add<int>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
-
-        /**
-         * @brief Add an argument with both short and long names.
-         * @tparam T Argument type.
-         * @param shortName Short name (e.g., "-c").
-         * @param longName Long name (e.g., "--count").
-         * @param help Help text.
-         * @param defaultValue Optional default value.
-         * @return Reference to this CliParser for chaining.
-         */
-        template<typename T>
-        std::enable_if_t<!std::is_same_v<T, std::string>, CliParser&>
-        add(const char* shortName,const char* longName, const std::string& help, std::optional<T> defaultValue = std::nullopt) {
-            return add<T>(ArgName{std::string(shortName), std::string(longName)}, help, defaultValue);
+        CliParser& addFloat(const char* name, const std::string& help, std::optional<float> defaultValue = std::nullopt) {
+            return add<float>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
-
-        template<typename T>
-        std::enable_if_t<std::is_same_v<T, std::string>, CliParser&>
-        add(const char* shortName, const char* longName, const std::string& help, const char* defaultValue) {
-            return add<std::string>(ArgName{shortName, longName}, help, std::string(defaultValue));
+        CliParser& addBool(const char* name, const std::string& help, std::optional<bool> defaultValue = false) {
+            return add<bool>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
-
-        // Shorter method names for adding arguments
-        /**
-         * @name Convenience methods for adding arguments of specific types
-         * @{
-         */
-        CliParser& addString(const std::string& name, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) { 
-            return add<std::string>(name, help, defaultValue); 
+        CliParser& addStrings(const char* name, const std::string& help, std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
+            return add<std::vector<std::string>>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
-        CliParser& addString(const char* name,  const char* help, std::optional<std::string> defaultValue = std::nullopt) {
-            return addString(std::string(name), help, defaultValue);
+        CliParser& addInts(const char* name, const std::string& help, std::optional<std::vector<int>> defaultValue = std::nullopt) {
+            return add<std::vector<int>>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
-        CliParser& addString(const char* name, const char* help, const char* defaultValue) {
-            return addString(std::string(name), std::string(help), std::string(defaultValue));
+        CliParser& addFloats(const char* name, const std::string& help, std::optional<std::vector<float>> defaultValue = std::nullopt) {
+            return add<std::vector<float>>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
-        CliParser& addInt(const char* name, const char* help, std::optional<int> defaultValue = std::nullopt) { 
-            return add<int>(name, help, defaultValue);
+        CliParser& addBools(const char* name, const std::string& help, std::optional<std::vector<bool>> defaultValue = std::nullopt) {
+            return add<std::vector<bool>>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
-        CliParser& addFloat(const char* name, const char* help, std::optional<float> defaultValue = std::nullopt) { 
-            return add<float>(name, help, defaultValue);
+        // Convenience methods for adding arguments of specific types using vector<string> API
+        CliParser& addString(const std::vector<std::string>& names, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) {
+            return add<std::string>(names, help, defaultValue);
         }
-        CliParser& addBool(const std::string& name, const std::string& help, std::optional<bool> defaultValue = false) { 
-            return add<bool>(name, help, defaultValue); 
+        CliParser& addInt(const std::vector<std::string>& names, const std::string& help, std::optional<int> defaultValue = std::nullopt) {
+            return add<int>(names, help, defaultValue);
         }
-        CliParser& addStrings(const char* name, const char* help, std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
-            return add<std::vector<std::string>>(name, help, defaultValue);
+        CliParser& addFloat(const std::vector<std::string>& names, const std::string& help, std::optional<float> defaultValue = std::nullopt) {
+            return add<float>(names, help, defaultValue);
         }
-        CliParser& addInts(const char* name, const char* help, std::optional<std::vector<int>> defaultValue = std::nullopt) { 
-            return add<std::vector<int>>(name, help, defaultValue); 
+        CliParser& addBool(const std::vector<std::string>& names, const std::string& help, std::optional<bool> defaultValue = false) {
+            return add<bool>(names, help, defaultValue);
         }
-        CliParser& addFloats(const char* name, const char* help, std::optional<std::vector<float>> defaultValue = std::nullopt) { 
-            return add<std::vector<float>>(name, help, defaultValue); 
+        CliParser& addStrings(const std::vector<std::string>& names, const std::string& help, std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
+            return add<std::vector<std::string>>(names, help, defaultValue);
         }
-        CliParser& addBools(const char* name, const char* help, std::optional<std::vector<bool>> defaultValue = std::nullopt) { 
-            return add<std::vector<bool>>(name, help, defaultValue); 
+        CliParser& addInts(const std::vector<std::string>& names, const std::string& help, std::optional<std::vector<int>> defaultValue = std::nullopt) {
+            return add<std::vector<int>>(names, help, defaultValue);
         }
- 
-        // --- Explicit overloads for named arguments, help, and default value ---
-        CliParser& addInt(const char* shortName, const char* longName, const std::string& help, std::optional<int> defaultValue = std::nullopt) {
-            return add<int>(ArgName{shortName, longName}, help, defaultValue);
+        CliParser& addFloats(const std::vector<std::string>& names, const std::string& help, std::optional<std::vector<float>> defaultValue = std::nullopt) {
+            return add<std::vector<float>>(names, help, defaultValue);
         }
-        CliParser& addBool(const char* shortName, const char* longName,  const std::string& help, std::optional<bool> defaultValue = false) {
-            return add<bool>(ArgName{shortName, longName}, help, defaultValue);
+        CliParser& addBools(const std::vector<std::string>& names, const std::string& help, std::optional<std::vector<bool>> defaultValue = std::nullopt) {
+            return add<std::vector<bool>>(names, help, defaultValue);
         }
-        CliParser& addString(const char* shortName, const char* longName, const std::string& help, std::optional<std::string> defaultValue = std::nullopt) {
-            return add<std::string>(ArgName{shortName, longName}, help, defaultValue);
-        }
-        CliParser& addFloat(const char* shortName, const char* longName, const std::string& help, std::optional<float> defaultValue = std::nullopt) {
-            return add<float>(ArgName{shortName, longName}, help, defaultValue);
-        }
-        CliParser& addInts(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<int>> defaultValue = std::nullopt) {
-            return add<std::vector<int>>(ArgName{shortName, longName}, help, defaultValue);
-        }
-        CliParser& addBools(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<bool>> defaultValue = std::nullopt) {
-            return add<std::vector<bool>>(ArgName{shortName, longName}, help, defaultValue);
-        }
-        CliParser& addStrings(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<std::string>> defaultValue = std::nullopt) {
-            return add<std::vector<std::string>>(ArgName{shortName, longName}, help, defaultValue);
-        }
-        CliParser& addFloats(const char* shortName, const char* longName, const std::string& help, std::optional<std::vector<float>> defaultValue = std::nullopt) {
-            return add<std::vector<float>>(ArgName{shortName, longName}, help, defaultValue);
-        }
-        /** @} */
 
         /**
          * @brief Parse command-line arguments using stored argc/argv.
@@ -393,9 +347,11 @@ namespace Argy {
                 std::string key;
                 if (startsWith(token, "--")) {
                     std::string normKey = token.substr(2);
-                    // Find by longName (with or without dashes)
+                    // Find by any registered name (long forms are registered with and without dashes)
                     auto it = std::find_if(m_arguments.begin(), m_arguments.end(), [&](const auto& pair) {
-                        return pair.second.longName == "--" + normKey || pair.second.longName == normKey;
+                        const Arg& a = pair.second;
+                        return std::find(a.names.begin(), a.names.end(), normKey) != a.names.end() ||
+                               std::find(a.names.begin(), a.names.end(), "--" + normKey) != a.names.end();
                     });
                     if (it == m_arguments.end()) throw UnknownArgumentException("Unknown argument: --" + normKey);
                     currentKey = it->first;
@@ -412,7 +368,9 @@ namespace Argy {
                     std::string normKey = token.substr(1);
                     // Find by shortName (with or without dash)
                     auto it = std::find_if(m_arguments.begin(), m_arguments.end(), [&](const auto& pair) {
-                        return pair.second.shortName == normKey;
+                        const Arg& a = pair.second;
+                        return std::find(a.names.begin(), a.names.end(), normKey) != a.names.end() ||
+                               std::find(a.names.begin(), a.names.end(), "-" + normKey) != a.names.end();
                     });
                     if (it == m_arguments.end()) throw UnknownArgumentException("Unknown short argument: -" + normKey);
                     currentKey = it->first;
@@ -449,11 +407,11 @@ namespace Argy {
             for (auto& [key, argument] : m_arguments) {
                 if (!isListType(argument.type) && std::holds_alternative<std::monostate>(argument.parsedValue)) {
                     if (argument.required)
-                        throw MissingArgumentException("Missing required argument: " + argument.longName);
+                        throw MissingArgumentException("Missing required argument: " + (argument.names.empty() ? key : argument.names[0]));
                     argument.parsedValue = argument.defaultValue;
                 } else if (isListType(argument.type) && std::holds_alternative<std::monostate>(argument.parsedValue)) {
                     if (argument.required)
-                        throw MissingArgumentException("Missing required list argument: " + argument.longName);
+                        throw MissingArgumentException("Missing required list argument: " + (argument.names.empty() ? key : argument.names[0]));
                     argument.parsedValue = argument.defaultValue;
                 } else {
                     // Convert single value types
@@ -477,9 +435,9 @@ namespace Argy {
                                 break;
                             }
                         } catch (const std::invalid_argument& e) {
-                            throw InvalidValueException(std::string("Invalid value for argument '") + argument.longName + "': " + val + " (" + e.what() + ")");
+                            throw InvalidValueException(std::string("Invalid value for argument '") + (argument.names.empty() ? key : argument.names[0]) + "': " + val + " (" + e.what() + ")");
                         } catch (const std::out_of_range& e) {
-                            throw InvalidValueException(std::string("Value out of range for argument '") + argument.longName + "': " + val + " (" + e.what() + ")");
+                            throw InvalidValueException(std::string("Value out of range for argument '") + (argument.names.empty() ? key : argument.names[0]) + "': " + val + " (" + e.what() + ")");
                         }
                     }
                     // Convert list types
@@ -512,9 +470,9 @@ namespace Argy {
                                 break;
                             }
                         } catch (const std::invalid_argument& e) {
-                            throw InvalidValueException("Invalid value in list for argument '" + argument.longName + "'" + std::string(" (") + e.what() + ")");
+                            throw InvalidValueException("Invalid value in list for argument '" + (argument.names.empty() ? key : argument.names[0]) + "'" + std::string(" (") + e.what() + ")");
                         } catch (const std::out_of_range& e) {
-                            throw InvalidValueException("Value out of range in list for argument '" + argument.longName + "'" + std::string(" (") + e.what() + ")");
+                            throw InvalidValueException("Value out of range in list for argument '" + (argument.names.empty() ? key : argument.names[0]) + "'" + std::string(" (") + e.what() + ")");
                         }
                     }
                 }
@@ -535,20 +493,29 @@ namespace Argy {
             auto lookupIt = m_nameLookup.find(normName);
             if (lookupIt == m_nameLookup.end()) throw UnknownArgumentException("Argument not found: " + name);
             const Arg& arg = m_arguments.at(lookupIt->second);
+            // Special handling for bool: always optional, default is false if not present
+            if constexpr (std::is_same_v<T, bool>) {
+                if (std::holds_alternative<bool>(arg.parsedValue)) {
+                    return std::get<bool>(arg.parsedValue);
+                }
+                return false;
+            }
             // Handle vector types
             if constexpr (is_vector<T>::value) {
                 if (std::holds_alternative<T>(arg.parsedValue)) {
                     return std::get<T>(arg.parsedValue);
-                } else if (!std::holds_alternative<std::monostate>(arg.defaultValue) && std::holds_alternative<T>(arg.defaultValue)) {
+                }
+                else if (!std::holds_alternative<std::monostate>(arg.defaultValue) && std::holds_alternative<T>(arg.defaultValue)) {
                     return std::get<T>(arg.defaultValue);
                 }
                 throw TypeMismatchException("Type mismatch: argument '" + name + "' is not of type " + typeid(T).name() + ".");
-            } else {
+            }
+            else {
                 if (std::holds_alternative<std::monostate>(arg.parsedValue)) {
                     if (!std::holds_alternative<std::monostate>(arg.defaultValue) && std::holds_alternative<T>(arg.defaultValue)) {
                         return std::get<T>(arg.defaultValue);
                     }
-                    throw UnknownArgumentException("Argument not found: " + name);
+                    throw MissingArgumentException("Missing required argument: " + name);
                 }
                 if (std::holds_alternative<T>(arg.parsedValue)) {
                     return std::get<T>(arg.parsedValue);
@@ -614,7 +581,7 @@ namespace Argy {
                 std::vector<std::string> posNames;
                 for (const auto& key : m_positionalOrder) {
                     const auto& argument = m_arguments.at(key);
-                    std::string pos = argument.longName;
+                    std::string pos = !argument.longForms.empty() ? argument.longForms[0] : (argument.names.empty() ? key : argument.names[0]);
                     if (pos.size() > maxPosLen) maxPosLen = pos.size();
                     posNames.push_back(pos);
                 }
@@ -645,12 +612,17 @@ namespace Argy {
             for (const auto& [key, argument] : m_arguments) {
                 if (!argument.positional) {
                     std::string opt;
-                    if (!argument.shortName.empty() && !argument.longName.empty()) {
-                        opt = "-" + argument.shortName + ", --" + argument.longName;
-                    } else if (!argument.shortName.empty()) {
-                        opt = "-" + argument.shortName;
-                    } else if (!argument.longName.empty()) {
-                        opt = "    --" + argument.longName; // 4 spaces for alignment
+                    // Prefer showing short and long forms if available
+                    if (!argument.shortForms.empty() && !argument.longForms.empty()) {
+                        opt = "-" + argument.shortForms[0] + ", --" + argument.longForms[0];
+                    } else if (!argument.shortForms.empty()) {
+                        opt = "-" + argument.shortForms[0];
+                    } else if (!argument.longForms.empty()) {
+                        opt = "    --" + argument.longForms[0]; // 4 spaces for alignment
+                    } else if (!argument.names.empty()) {
+                        // fallback to first registered name
+                        std::string n = argument.names[0];
+                        if (startsWith(n, "--")) opt = "    " + n; else if (startsWith(n, "-")) opt = n; else opt = n;
                     } else {
                         opt = "";
                     }
@@ -710,6 +682,36 @@ namespace Argy {
                         std::cout << " " << yellow << "(required)" << reset;
                     }
                     std::cout << "\n";
+                    // Print aliases (remaining registered names) beneath the main option line
+                    std::vector<std::string> aliases;
+                    std::string displayedShort = !argument.shortForms.empty() ? argument.shortForms[0] : std::string();
+                    std::string displayedLong = !argument.longForms.empty() ? argument.longForms[0] : std::string();
+                    // collect short form aliases (preserve single-dash)
+                    for (const auto& s : argument.shortForms) {
+                        if (s == displayedShort) continue;
+                        aliases.push_back(std::string("-") + s);
+                    }
+                    // collect long form aliases (preserve double-dash)
+                    for (const auto& l : argument.longForms) {
+                        if (l == displayedLong) continue;
+                        aliases.push_back(std::string("--") + l);
+                    }
+                    // any remaining names not captured in shortForms/longForms: guess dash based on length
+                    for (const auto& n : argument.names) {
+                        bool inShort = std::find(argument.shortForms.begin(), argument.shortForms.end(), n) != argument.shortForms.end();
+                        bool inLong = std::find(argument.longForms.begin(), argument.longForms.end(), n) != argument.longForms.end();
+                        if (inShort || inLong) continue;
+                        if (n.size() == 1) aliases.push_back(std::string("-") + n);
+                        else aliases.push_back(std::string("--") + n);
+                    }
+                    if (!aliases.empty()) {
+                        std::string aliasList;
+                        for (size_t ai = 0; ai < aliases.size(); ++ai) {
+                            if (ai > 0) aliasList += ", ";
+                            aliasList += aliases[ai];
+                        }
+                        std::cout << gray << "  alias: [" << green << aliasList << reset << "] \n";
+                    }
                 }
             }
             // Help flag, aligned
@@ -752,12 +754,13 @@ namespace Argy {
         };
 
         /**
-         * @struct Argument
+         * @struct Arg
          * @brief Represents one command-line argument and its metadata.
          */
         struct Arg {
-            std::string shortName;   
-            std::string longName;   
+            std::vector<std::string> names; ///< All normalized names/aliases (no leading dashes)
+            std::vector<std::string> shortForms; ///< short forms (without dash)
+            std::vector<std::string> longForms;  ///< long forms (without dashes)
             std::string help;       ///< Help/description string.
             bool required{ true };  ///< True if argument must be provided by the user.
             ArgType type{ ArgType::String }; ///< Argument type.
@@ -766,16 +769,6 @@ namespace Argy {
             bool positional{ false }; ///< True if this is a positional argument.
         };
 
-        /**
-         * @brief Represents a command-line argument name, supporting both short and long forms.
-         *
-         * This struct is used to specify argument names for the parser, allowing for both a short (single character)
-         * and a long (multi-character) name. Either or both can be provided.
-         */
-        struct ArgName {
-            std::string shortName; ///< Short name (e.g., "c" for -c)
-            std::string longName;  ///< Long name (e.g., "count" for --count)
-        };
 
         // Lookup map: maps all forms to canonical key
         std::unordered_map<std::string, std::string> m_nameLookup; ///< Maps argument names to canonical keys.
@@ -785,75 +778,11 @@ namespace Argy {
         int m_argc; ///< Argument count from main().
         char** m_argv; ///< Argument vector from main().
 
-        /**
-         * @brief Add an argument to the parser (positional or optional) using ArgName.
-         * @tparam T Argument type (int, float, bool, string, or vector thereof).
-         * @param argName ArgName object with short and/or long name.
-         * @param help Help text for usage.
-         * @param defaultValue Optional default value; if omitted, argument is required.
-         * @throws std::runtime_error if attempting to override reserved names --help or -h.
-         */
-        template<typename T>
-        CliParser& add(const ArgName& argName,
-            const std::string& help = "",
-            std::optional<T> defaultValue = std::nullopt) {
-            std::string shortKey = argName.shortName;
-            std::string longKey = argName.longName;
-
-            // Enforce naming conventions BEFORE stripping dashes
-            if (!shortKey.empty() && !startsWith(shortKey, "-"))
-                throw InvalidArgumentException("shortName must start with -");
-            if (!longKey.empty() && !startsWith(longKey, "--"))
-                throw InvalidArgumentException("longName must start with --");
-
-            // Strip dashes for storage
-            if (startsWith(shortKey, "-")) shortKey = shortKey.substr(1);
-            if (startsWith(longKey, "--")) longKey = longKey.substr(2);
-            else if (startsWith(longKey, "-")) longKey = longKey.substr(1);
-
-            ArgType type = deduceArgType<T>();
-            Value val = defaultValue ? Value(*defaultValue) : Value{};
-            bool isRequired = !defaultValue.has_value();
-
-            if constexpr (std::is_same_v<T, bool>) {
-                isRequired = false;
-            }
-
-            bool isPositional = longKey.empty();
-            // Check for duplicates
-            for (const auto& [k, v] : m_arguments) {
-                if (!longKey.empty() && v.longName == longKey)
-                    throw DuplicateArgumentException("Duplicate longName: " + longKey);
-                if (!shortKey.empty() && v.shortName == shortKey)
-                    throw DuplicateArgumentException("Duplicate shortName: " + shortKey);
-            }
-
-            Arg arg{shortKey, longKey, help, isRequired, type, val, Value{}, isPositional};
-            std::string key = isPositional ? shortKey : longKey;
-            m_arguments[key] = arg;
-            // Register all forms in lookup map
-            if (!longKey.empty()) {
-                m_nameLookup[normalizeName(longKey)] = key;
-                m_nameLookup[longKey] = key;
-                m_nameLookup["--" + longKey] = key;
-            }
-            if (!shortKey.empty()) {
-                m_nameLookup[normalizeName(shortKey)] = key;
-                m_nameLookup[shortKey] = key;
-                m_nameLookup["-" + shortKey] = key;
-            }
-            if (isPositional) {
-                m_nameLookup[normalizeName(shortKey)] = key;
-                m_nameLookup[shortKey] = key;
-                m_positionalOrder.push_back(key);
-            }
-            return *this;
-        }
-
         // checks if a string starts with a given prefix
         static bool startsWith(const std::string& str, const std::string& prefix) {
             return str.size() >= prefix.size() && str.compare(0, prefix.size(), prefix) == 0;
         }
+        
         // normalize argument name (strip leading dashes)
         static std::string normalizeName(const std::string& name) {
             if (startsWith(name, "--")) return name.substr(2);
