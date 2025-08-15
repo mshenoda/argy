@@ -34,9 +34,10 @@
 #include <functional>
 #include <algorithm>
 #include <filesystem>
+#include <regex>
 
+/// @brief Namespace for the Argy command-line argument parser library.
 namespace Argy {
-    
     /// @brief Base class for all exceptions in the Argy library.
     class Exception : public std::exception {
     public:
@@ -112,13 +113,11 @@ namespace Argy {
     using Floats = std::vector<float>;
     using Strings = std::vector<std::string>;
 
-    /** @brief Returns a validator lambda that checks if a value is within a specified range.
-     * @param min Minimum allowed value (inclusive).
-     * @param max Maximum allowed value (inclusive).
-     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
-     *
-     * This allows you to enforce that an argument's value must be within a specific range.
-     */
+    /// @brief Returns a validator lambda that checks if a value is within a specified range.
+    /// @param min Minimum allowed value (inclusive).
+    /// @param max Maximum allowed value (inclusive).
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+    /// This allows you to enforce that an argument's value must be within a specific range.
     template<typename T>
     auto IsValueInRange(T min, T max) {
         return [min, max](const std::string& name, const T& value) {
@@ -128,13 +127,11 @@ namespace Argy {
         };
     }
 
-    /** @brief Returns a validator lambda that checks if all values in a vector are within a specified range.
-     * @param min Minimum allowed value (inclusive).
-     * @param max Maximum allowed value (inclusive).
-     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
-     *
-     * This allows you to enforce that all values in a vector argument must be within a specific range.
-     */
+    /// @brief Returns a validator lambda that checks if all values in a vector are within a specified range.
+    /// @param min Minimum allowed value (inclusive).
+    /// @param max Maximum allowed value (inclusive).
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+    /// This allows you to enforce that all values in a vector argument must be within a specific range.
     template<typename T>
     auto IsVectorInRange(T min, T max) {
         return [min, max](const std::string& name, const std::vector<T>& values) {
@@ -144,12 +141,9 @@ namespace Argy {
         };
     }
 
-    /**
-     * @brief Returns a validator lambda that checks if a string value is a valid RGB color code.
-     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
-     *
-     * This allows you to enforce that an argument's value must be a valid RGB color code in the format "rgb(r, g, b)".
-     */
+    /// @brief Returns a validator lambda that checks if a string value is a valid RGB color code.
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+    /// This allows you to enforce that an argument's value must be a valid RGB color code in the format "rgb(r, g, b)".
     inline auto IsAlphaNumeric() {
         return [](const std::string& name, const std::string& value) {
             if (!std::all_of(value.begin(), value.end(), ::isalnum)) {
@@ -159,12 +153,9 @@ namespace Argy {
         };
     }
 
-    /**
-     * @brief Returns a validator lambda that checks if a string value contains only letters.
-     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
-     *
-     * This allows you to enforce that an argument's value must contain only alphabetic characters.
-     */
+    /// @brief Returns a validator lambda that checks if a string value contains only letters.
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+    /// This allows you to enforce that an argument's value must contain only alphabetic characters.
     inline auto IsAlpha() {
         return [](const std::string& name, const std::string& value) {
             if (!std::all_of(value.begin(), value.end(), ::isalpha)) {
@@ -174,12 +165,9 @@ namespace Argy {
         };
     }
 
-    /**
-     * @brief Returns a validator lambda that checks if a string value contains only digits.
-     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
-     *
-     * This allows you to enforce that an argument's value must contain only numeric characters.
-     */
+    /// @brief Returns a validator lambda that checks if a string value contains only digits.
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+    /// This allows you to enforce that an argument's value must contain only numeric characters.
     inline auto IsNumeric() {
         return [](const std::string& name, const std::string& value) {
             if (!std::all_of(value.begin(), value.end(), ::isdigit)) {
@@ -189,12 +177,9 @@ namespace Argy {
         };
     }
 
-    /**
-     * @brief Returns a validator lambda that checks if a string value is a valid path (file or directory).
-     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
-     *
-     * This allows you to enforce that an argument's value must be a valid file or directory path.
-     */
+    /// @brief Returns a validator lambda that checks if a string value is a valid path (file or directory).
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+    /// This allows you to enforce that an argument's value must be a valid file or directory path.
     inline auto IsPath() {
         return [](const std::string& name, const std::string& value) {
             std::filesystem::path p(value);
@@ -212,10 +197,8 @@ namespace Argy {
         };
     }
 
-    /**
-     * @brief Returns a validator lambda that checks if a string value is a file and if it exists.
-     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
-     */
+    /// @brief Returns a validator lambda that checks if a string value is a file and if it exists.
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
     inline auto IsFile() {
         return [](const std::string& name, const std::string& value) {
             std::filesystem::path p(value);
@@ -233,10 +216,8 @@ namespace Argy {
         };
     }
 
-    /**
-     * @brief Returns a validator lambda that checks if a string value is a directory and if it exists.
-     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
-     */
+    /// @brief Returns a validator lambda that checks if a string value is a directory and if it exists.
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
     inline auto IsDirectory() {
         return [](const std::string& name, const std::string& value) {
             std::filesystem::path p(value);
@@ -254,13 +235,10 @@ namespace Argy {
         };
     }
 
-    /**
-     * @brief Returns a validator lambda that checks if a string value is one of the specified valid values.
-     * @param validValues Vector of valid string values
-     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
-     *
-     * This allows you to enforce that an argument's value must be one of a predefined set of strings.
-     */
+    /// @brief Returns a validator lambda that checks if a string value is one of the specified valid values.
+    /// @param validValues Vector of valid string values
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+    /// This allows you to enforce that an argument's value must be one of a predefined set of strings.
     inline auto IsOneOf(const std::vector<std::string>& validValues) {
         // Helper function to join vector<string> with a separator
         auto join = [](const std::vector<std::string>& vec, const std::string& sep) {
@@ -279,40 +257,118 @@ namespace Argy {
         };
     }
 
-    /**
-     * @class CliParser
-     * @brief Command-line argument parser inspired by Python's argparse.
-     *
-     * This class provides a flexible and type-safe way to define, parse, and validate command-line arguments.
-     * It supports positional and optional arguments, type validation, default values, required arguments,
-     * list arguments, shorthand options, and automatic help message generation.
-     */
+    /// @brief Returns a validator lambda that checks if a string value matches a regex pattern.
+    /// @param pattern Regex pattern to match against
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+    /// This allows you to enforce that an argument's value must match a specific regex pattern.
+    inline auto IsMatch(const std::string& regexPattern) {
+        return [regexPattern](const std::string& name, const std::string& value) {
+            std::regex re(regexPattern);
+            if (!std::regex_match(value, re)) {
+                throw InvalidValueException("Value '" + value + "' for argument '" + name +
+                    "' does not match pattern: " + regexPattern);
+            }
+        };
+    }
+
+    /// @brief Returns a validator lambda that checks if a string value is a valid IP address (IPv4 or IPv6).
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+    /// This allows you to enforce that an argument's value must be a valid IP address format.
+    inline auto IsIPv4() {
+        return IsMatch(R"(\b((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\b)");
+    }
+
+    /// @brief Returns a validator lambda that checks if a string value is a valid IPv6 address.
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+    /// This allows you to enforce that an argument's value must be a valid IPv6 address format.
+    inline auto IsIPv6() {
+        return IsMatch(R"(\b([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b)");
+    }
+
+    /// @brief Returns a validator lambda that checks if a string value is a valid MAC address.
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+    /// This allows you to enforce that an argument's value must be a valid MAC address format.
+    inline auto IsMACAddress() {
+        return IsMatch(R"(\b([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})\b)");
+    }
+
+    /// @brief Returns a validator lambda that checks if a string value is a valid IP address (IPv4 or IPv6).
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+    /// This allows you to enforce that an argument's value must be a valid IP address format.
+    inline auto IsIPAddress() {
+        return [](const std::string& name, const std::string& value) {
+            try {
+                IsIPv4()(name, value);
+            } catch (const InvalidValueException&) {
+                try {
+                    IsIPv6()(name, value);
+                } catch (const InvalidValueException&) {
+                    throw InvalidValueException("Value '" + value + "' for argument '" + name +
+                        "' is not a valid IP address (IPv4 or IPv6)");
+                }
+            }
+        };
+    }
+
+    /// @brief Returns a validator lambda that checks if a string value is a valid email address.
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+    /// This allows you to enforce that an argument's value must be a valid email address format.
+    inline auto IsEmail() {
+        return IsMatch(R"(^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$)");
+    }
+     
+    /// @brief Returns a validator lambda that checks if a string value is a valid URL.
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+    /// This allows you to enforce that an argument's value must be a valid URL format.
+    inline auto IsUrl() {
+        return IsMatch(R"(^https?://[a-zA-Z0-9.-]+(?:\.[a-zA-Z]{2,})+.*$)");
+    }
+
+    /// @brief Returns a validator lambda that checks if a string value is a valid UUID (version 4).
+    /// @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+    /// This allows you to enforce that an argument's value must be a valid UUID format.
+    inline auto IsUUID() {
+        return IsMatch(R"(^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$)");
+    }
+
+    /// @class CliParser
+    /// @brief Command-line argument parser inspired by Python's argparse.
+    /// This class provides a flexible and type-safe way to define, parse, and validate command-line arguments.
+    /// It supports positional and optional arguments, type validation, default values, required arguments,
+    /// list arguments, shorthand options, and automatic help message generation.
     class CliParser {
     public:
-        // Helper to deduce lambda argument types
+        /// Helper to deduce lambda argument types
         template<typename T>
         struct lambda_arg_type;
 
-        // Single-argument lambda
+        /// Single-argument lambda
         template<typename R, typename C, typename arg>
         struct lambda_arg_type<R(C::*)(arg) const> { using type = arg; };
 
-        // Two-argument lambda (by value)
+        /// Two-argument lambda (by value)
         template<typename R, typename C, typename arg1, typename arg2>
         struct lambda_arg_type<R(C::*)(arg1, arg2) const> { using type = arg2; };
 
-        // Two-argument lambda (by const reference)
+        /// Two-argument lambda (by const reference)
         template<typename R, typename C, typename arg1, typename arg2>
         struct lambda_arg_type<R(C::*)(arg1, const arg2&) const> { using type = arg2; };
 
+        /// Alias for deducing lambda argument types
         template<typename F>
         using lambda_arg_t = typename lambda_arg_type<decltype(&F::operator())>::type;
 
+        /// @brief ArgBuilder class for adding additional functionality to argument definitions.
+        /// This class allows you to chain validation functions to an argument after it has been defined.
         class ArgBuilder {
         public:
+            /// @brief Constructs an ArgBuilder for a specific argument key.
+            /// @param parser Reference to the CliParser instance.
+            /// @param key The argument key (name) to build upon.
             ArgBuilder(CliParser& parser, const std::string& key)
                 : m_parser(parser), m_key(key) {}
 
+            /// @brief Adds a validation function to the argument.
             template<typename F>
             ArgBuilder& validate(F&& fn) {
                 using T = lambda_arg_t<F>;
@@ -320,6 +376,8 @@ namespace Argy {
                 return *this;
             }
 
+            /// @brief Sets a default value for the argument.
+            /// @returns a reference to the CliParser for further chaining.
             CliParser& done() { return m_parser; }
 
         private:
@@ -328,14 +386,11 @@ namespace Argy {
         };
 
     public:
-        /**
-         * @brief Constructs a CliParser and sets the default help handler.
-         * @param argc Argument count from main().
-         * @param argv Argument vector from main().
-         * @param useColors Whether to use ANSI color codes in help output (default: true).
-         *
-         * The default help handler prints help and exits. You can override it with setHelpHandler().
-         */
+        /// @brief Constructs a CliParser and sets the default help handler.
+        /// @param argc Argument count from main().
+        /// @param argv Argument vector from main().
+        /// @param useColors Whether to use ANSI color codes in help output (default: true).
+        /// The default help handler prints help and exits. You can override it with setHelpHandler().
         CliParser(int argc, char* argv[], bool useColors = true)
             : m_argc(argc), m_argv(argv), m_useColors(useColors) {
             m_helpHandler = [this](std::string name) {
@@ -344,22 +399,17 @@ namespace Argy {
             };
         }
 
-        /**
-         * @brief Set a custom help handler invoked on --help or -h.
-         * @param handler Function to call when help is requested. Receives the program name.
-         *
-         * The default handler prints help and exits. Override this if you want to return or throw instead.
-         */
+        /// @brief Set a custom help handler invoked on --help or -h.
+        /// @param handler Function to call when help is requested. Receives the program name.
+        /// The default handler prints help and exits. Override this if you want to return or throw instead.
         void setHelpHandler(std::function<void(std::string)> handler) {
             m_helpHandler = std::move(handler);
         }
 
-        /* @brief set validator for an argument
-         * @param name Argument name to set the validator for.
-         * @param fn Validation function that takes the argument value and throws TypeMismatchException on failure.
-         *
-         * This allows you to enforce custom validation rules for argument values.
-         */
+        /// @brief set validator for an argument
+        /// @param name Argument name to set the validator for.
+        /// @param fn Validation function that takes the argument value and throws TypeMismatchException on failure.
+        /// This allows you to enforce custom validation rules for argument values.
         template<typename F>
         void setValidator(const std::string& name, F&& fn) {
             auto lookupIt = m_nameLookup.find(normalizeName(name));
@@ -383,25 +433,21 @@ namespace Argy {
             };
         }
 
-        /**
-         * @brief Add an argument to the parser with a single name.
-         * @tparam T Argument type (int, float, bool, string, or vector thereof).
-         * @param name Argument name (e.g. "filename", "-c", "--count").
-         * @param help Help text for usage.
-         * @param defaultValue Optional default value; if omitted, argument is required.
-         */
+        /// @brief Add an argument to the parser with a single name.
+        /// @tparam T Argument type (int, float, bool, string, or vector thereof).
+        /// @param name Argument name (e.g. "filename", "-c", "--count").
+        /// @param help Help text for usage.
+        /// @param defaultValue Optional default value; if omitted, argument is required.
         template<typename T>
         ArgBuilder add(const char* name, const char* help, std::optional<T> defaultValue = std::nullopt) {
             return add<T>(std::vector<std::string>{std::string(name)}, help, defaultValue);
         }
 
-        /**
-        * @brief Add an argument to the parser with multiple names (aliases).
-        * @tparam T Argument type (int, float, bool, string, or vector thereof).
-        * @param names Vector of argument names (e.g. {"-c", "--count", "--cnt"}).
-        * @param help Help text for usage.
-        * @param defaultValue Optional default value; if omitted, argument is required.
-        */
+        /// @brief Add an argument to the parser with multiple names (aliases).
+        /// @tparam T Argument type (int, float, bool, string, or vector thereof).
+        /// @param names Vector of argument names (e.g. {"-c", "--count", "--cnt"}).
+        /// @param help Help text for usage.
+        /// @param defaultValue Optional default value; if omitted, argument is required.
         template<typename T>
         ArgBuilder add(const std::vector<std::string>& names, const std::string& help, std::optional<T> defaultValue = std::nullopt) {
             std::vector<std::string> cleanNames;
@@ -519,20 +565,16 @@ namespace Argy {
             return add<std::vector<bool>>(names, help, defaultValue);
         }
 
-        /**
-         * @brief Parse command-line arguments using stored argc/argv.
-         *
-         * This method processes the command-line arguments, validates types, checks for required arguments,
-         * and sets default values where appropriate. Throws on unknown or missing required arguments.
-         *
-         * @throws UnknownArgumentException if an unknown argument is encountered.
-         * @throws MissingArgumentException if a required argument is missing.
-         * @throws TypeMismatchException if an argument's type does not match the expected type.
-         * @throws UnexpectedPositionalArgumentException if a positional argument is encountered out of order.
-         * @throws InvalidValueException if a value cannot be converted to the expected type.
-         * @throws OutOfRangeException if a value is outside the expected range.
-         * @note This method automatically handles the --help and -h flags by invoking the help handler.
-         */
+        /// @brief Parse command-line arguments using stored argc/argv.
+        /// This method processes the command-line arguments, validates types, checks for required arguments,
+        /// and sets default values where appropriate. Throws on unknown or missing required arguments.
+        /// @throws UnknownArgumentException if an unknown argument is encountered.
+        /// @throws MissingArgumentException if a required argument is missing.
+        /// @throws TypeMismatchException if an argument's type does not match the expected type.
+        /// @throws UnexpectedPositionalArgumentException if a positional argument is encountered out of order.
+        /// @throws InvalidValueException if a value cannot be converted to the expected type.
+        /// @throws OutOfRangeException if a value is outside the expected range.
+        /// @note This method automatically handles the --help and -h flags by invoking the help handler.
         void parse() {
             int argc = m_argc;
             char** argv = m_argv;
@@ -700,14 +742,12 @@ namespace Argy {
             }
         }
 
-        /**
-         * @brief Get the parsed argument value by name.
-         * @tparam T Expected argument type.
-         * @param name Argument name.
-         * @return Parsed argument value of type T.
-         * @throws UnknownArgumentException if the argument is not found.
-         * @throws TypeMismatchException if the argument type does not match T.
-         */
+        /// @brief Get the parsed argument value by name.
+        /// @tparam T Expected argument type.
+        /// @param name Argument name.
+        /// @return Parsed argument value of type T.
+        /// @throws UnknownArgumentException if the argument is not found.
+        /// @throws TypeMismatchException if the argument type does not match T.
         template<typename T>
         T get(const std::string& name) const {
             std::string normName = normalizeName(name);
@@ -745,11 +785,9 @@ namespace Argy {
             }
         }
 
-        /**
-         * @brief Check if an argument was provided on the command line.
-         * @param name Argument name.
-         * @return True if the argument is present, false otherwise.
-         */
+        /// @brief Check if an argument was provided on the command line.
+        /// @param name Argument name.
+        /// @return True if the argument is present, false otherwise.
         bool has(const std::string& name) const {
             std::string normName = normalizeName(name);
             auto lookupIt = m_nameLookup.find(normName);
@@ -758,10 +796,8 @@ namespace Argy {
             return !std::holds_alternative<std::monostate>(arg.parsedValue);
         }
 
-        /**
-         * @name Convenience getters for specific types
-         * @{
-         */
+        /// @name Convenience getters for specific types
+        /// @{
         int getInt(const std::string& name) const { return get<int>(name); }
         float getFloat(const std::string& name) const { return get<float>(name); }
         bool getBool(const std::string& name) const { return get<bool>(name); }
@@ -771,14 +807,11 @@ namespace Argy {
         std::vector<float> getFloats(const std::string& name) const { return get<std::vector<float>>(name); }
         std::vector<bool> getBools(const std::string& name) const { return get<std::vector<bool>>(name); }
         std::vector<std::string> getStrings(const std::string& name) const { return get<std::vector<std::string>>(name); }
-        /** @} */
+        /// @}
 
-        /**
-         * @brief Print help message to stdout.
-         * @param programName The program's executable name (usually argv[0]).
-         *
-         * This prints a usage summary and all registered arguments, including their help text and default values.
-         */
+        /// @brief Print help message to stdout.
+        /// @param programName The program's executable name (usually argv[0]).
+        /// This prints a usage summary and all registered arguments, including their help text and default values.
         void printHelp(const std::string& programName) const {
             // ANSI color codes
             const char* bold = m_useColors ? "\033[1m" : "";
@@ -948,11 +981,8 @@ namespace Argy {
     private:
         bool m_useColors = true;
 
-        /**
-         * @brief Variant to hold any supported argument value type.
-         *
-         * This variant is used for storing argument values of different types, including lists.
-         */
+        /// @brief Variant to hold any supported argument value type.
+        /// This variant is used for storing argument values of different types, including lists.
         using Value = std::variant<
             std::monostate,      ///< No value
             std::string,         ///< String value
@@ -964,10 +994,7 @@ namespace Argy {
             std::vector<float>,       ///< List of floats
             std::vector<bool>>;       ///< List of booleans
 
-        /**
-         * @enum ArgType
-         * @brief Supported argument types for validation and parsing.
-         */
+        /// @brief Supported argument types for validation and parsing.
         enum class ArgType {
             String,     ///< Single string value
             Int,        ///< Single integer value
@@ -979,10 +1006,9 @@ namespace Argy {
             BoolList    ///< List of booleans
         };
 
-        /**
-         * @struct Arg
-         * @brief Represents one command-line argument and its metadata.
-         */
+
+        /// @struct Arg
+        /// @brief Represents one command-line argument and its metadata.
         struct Arg {
             std::vector<std::string> names; ///< All normalized names/aliases (no leading dashes)
             std::vector<std::string> shortForms; ///< short forms (without dash)
@@ -1005,23 +1031,21 @@ namespace Argy {
         int m_argc; ///< Argument count from main().
         char** m_argv; ///< Argument vector from main().
 
-        // checks if a string starts with a given prefix
+        /// @brief checks if a string starts with a given prefix
         static bool startsWith(const std::string& str, const std::string& prefix) {
             return str.size() >= prefix.size() && str.compare(0, prefix.size(), prefix) == 0;
         }
 
-        // normalize argument name (strip leading dashes)
+        /// @brief normalize argument name (strip leading dashes)
         static std::string normalizeName(const std::string& name) {
             if (startsWith(name, "--")) return name.substr(2);
             if (startsWith(name, "-")) return name.substr(1);
             return name;
         }
 
-        /**
-         * @brief Converts Value variant to string for defaults and printing.
-         * @param value The Value to convert.
-         * @return String representation of the value.
-         */
+        /// @brief Converts Value variant to string for defaults and printing.
+        /// @param value The Value to convert.
+        /// @return String representation of the value.
         static std::string toString(const Value& value) {
             if (std::holds_alternative<std::string>(value)) return std::get<std::string>(value);
             if (std::holds_alternative<int>(value)) return std::to_string(std::get<int>(value));
@@ -1070,31 +1094,28 @@ namespace Argy {
             return "";
         }
 
-        /**
-         * @brief Helper type trait to detect std::vector types.
-         * @tparam T Type to check.
-         */
+        /// @brief Check if a type is a std::vector.
+        /// This is a type trait to determine if a type is a std::vector.
+        /// @tparam T Type to check.
         template<typename T>
         struct is_vector : std::false_type {};
-
+        /// @brief Specialization for std::vector types.
+        /// @tparam T Element type of the vector.
+        /// @tparam A Allocator type of the vector.
         template<typename T, typename A>
         struct is_vector<std::vector<T, A>> : std::true_type {};
 
-        /**
-         * @brief Check if an ArgType represents a list type.
-         * @param type The ArgType to check.
-         * @return True if the type is a list type, false otherwise.
-         */
+        /// @brief Check if an ArgType represents a list type.
+        /// @param type The ArgType to check.
+        /// @return True if the type is a list type, false otherwise.
         static bool isListType(ArgType type) {
             return type == ArgType::StringList || type == ArgType::IntList ||
                 type == ArgType::FloatList || type == ArgType::BoolList;
         }
 
-        /**
-         * @brief Deduce ArgType enum from C++ type.
-         * @tparam T C++ type to deduce from.
-         * @return Corresponding ArgType value.
-         */
+        /// @brief Deduce ArgType enum from C++ type.
+        /// @tparam T C++ type to deduce from.
+        /// @return Corresponding ArgType value.
         template<typename T>
         static constexpr ArgType deduceArgType() {
             if constexpr (std::is_same_v<T, int>) return ArgType::Int;
