@@ -12,7 +12,8 @@ int main(int argc, char* argv[]) {
     try {
 
         // Positional argument
-        cli.add<string>("filename", "Input file");
+        cli.add<string>("filename", "Input file")
+           .validate(IsFile());
 
         // Optional argument with multiple aliases
         cli.add<int>({"-c", "--count", "-n", "--num"}, "Number of items");
@@ -20,10 +21,15 @@ int main(int argc, char* argv[]) {
         cli.add<bool>({"-v", "--visualize", "-s", "--show"}, "Visualize results"); // adding argument with multiple aliases 
 
         // Float argument with aliases
-        cli.add<float>({"-r", "--ratio"}, "Ratio value", 0.5f);
+        cli.add<float>({"-r", "--ratio"}, "Ratio value", 0.5f)
+           .validate(IsValueInRange(0.0f, 1.0f)); // Float argument with validation
+
+        cli.add<string>("--name", "Username")
+           .validate(IsOneOf({"user1", "user2", "admin"})); // String argument with validation
 
         // Vector<int> argument
-        cli.add<Ints>({"-i", "--ids"}, "List of IDs", Ints{1, 2, 3});
+        cli.add<Ints>({"-i", "--ids"}, "List of IDs", Ints{1, 2, 3})
+           .validate(IsVectorInRange(1, 100)); // Vector<int> argument with validation
 
         // Vector<float> argument
         cli.add<Floats>({"-ss", "--scores"}, "List of scores", Floats{0.1f, 0.2f, 0.3f});

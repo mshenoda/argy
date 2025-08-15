@@ -33,107 +33,76 @@
 #include <optional>
 #include <functional>
 #include <algorithm>
+#include <filesystem>
 
 namespace Argy {
-
-    /*
-    * @class Exception
-    * @brief Base class for all exceptions in the Argy library.
-    */
+    
+    /// @brief Base class for all exceptions in the Argy library.
     class Exception : public std::exception {
     public:
         explicit Exception(const std::string& message) : m_message(message) {}
         const char* what() const noexcept override { return m_message.c_str(); }
-
     private:
         std::string m_message;
     };
 
-    /**
-     * @class DefineException
-     * @brief Base class for exceptions related to argument definition errors.
-     */
+    /// @brief Base class for exceptions related to argument definition errors.
     class DefineException : public Exception {
         using Exception::Exception;
     };
 
-    /**
-     * @class ParseException
-     * @brief Base class for exceptions related to argument parsing errors.
-     */
+    /// @brief Base class for exceptions related to argument parsing errors.
     class ReservedArgumentException : public DefineException {
         using DefineException::DefineException;
     };
 
-    /**
-     * @class DuplicateArgumentException
-     * @brief Exception thrown when an argument is defined multiple times.
-     */
+    /// @brief Exception thrown when an argument is defined multiple times.
     class DuplicateArgumentException : public DefineException {
         using DefineException::DefineException;
     };
 
-    /**
-     * @class InvalidArgumentException
-     * @brief Exception thrown when an argument definition is invalid.
-     */
+    /// @brief Exception thrown when an argument definition is invalid.
     class InvalidArgumentException : public DefineException {
         using DefineException::DefineException;
     };
 
-    /**
-     * @class ParseException
-     * @brief Base class for exceptions related to argument parsing errors.
-     */
+    /// @brief Base class for exceptions related to argument parsing errors.
     class ParseException : public Exception {
         using Exception::Exception;
     };
 
-    /**
-     * @class ArgumentNotFoundException
-     * @brief Exception thrown when a requested argument is not found.
-     */
+    /// @brief Exception thrown when a requested argument is not found.
     class UnknownArgumentException : public ParseException {
         using ParseException::ParseException;
     };
 
-    /**
-     * @class MissingArgumentException
-     * @brief Exception thrown when a required argument is missing.
-     */
+    /// @brief Exception thrown when a required argument is missing.
     class MissingArgumentException : public ParseException {
         using ParseException::ParseException;
     };
 
-    /**
-     * @class TypeMismatchException
-     * @brief Exception thrown when an argument's type does not match the expected type.
-     */
+    /// @brief Exception thrown when a type mismatch occurs during parsing.
     class TypeMismatchException : public ParseException {
         using ParseException::ParseException;
     };
 
-    /**
-     * @class UnexpectedPositionalArgumentException
-     * @brief Exception thrown when an unexpected positional argument is encountered.
-     */
+    /// @brief Exception thrown when an unexpected positional argument is encountered.
     class UnexpectedPositionalArgumentException : public ParseException {
         using ParseException::ParseException;
     };
 
-    /**
-     * @class ValidateException
-     * @brief Base class for exceptions related to argument validation errors.
-     */
+    /// @brief Base class for exceptions related to argument validation errors.
     class ValidateException : public Exception {
         using Exception::Exception;
     };
 
-    /**
-     * @class InvalidValueException
-     * @brief Exception thrown when an argument value is invalid or cannot be converted.
-     */
+    /// @brief Exception thrown when an argument value is invalid or cannot be converted.
     class InvalidValueException : public ValidateException {
+        using ValidateException::ValidateException;
+    };
+
+    /// @brief Exception thrown when a value is out of the expected range.
+    class OutOfRangeException : public ValidateException {
         using ValidateException::ValidateException;
     };
 
@@ -142,6 +111,173 @@ namespace Argy {
     using Ints = std::vector<int>;
     using Floats = std::vector<float>;
     using Strings = std::vector<std::string>;
+
+    /** @brief Returns a validator lambda that checks if a value is within a specified range.
+     * @param min Minimum allowed value (inclusive).
+     * @param max Maximum allowed value (inclusive).
+     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+     *
+     * This allows you to enforce that an argument's value must be within a specific range.
+     */
+    template<typename T>
+    auto IsValueInRange(T min, T max) {
+        return [min, max](const std::string& name, const T& value) {
+            if (value < min || value > max)
+                throw Argy::OutOfRangeException("Argument '" + name + "' value " + std::to_string(value) +
+                                                " is out of range [" + std::to_string(min) + ", " + std::to_string(max) + "]");
+        };
+    }
+
+    /** @brief Returns a validator lambda that checks if all values in a vector are within a specified range.
+     * @param min Minimum allowed value (inclusive).
+     * @param max Maximum allowed value (inclusive).
+     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+     *
+     * This allows you to enforce that all values in a vector argument must be within a specific range.
+     */
+    template<typename T>
+    auto IsVectorInRange(T min, T max) {
+        return [min, max](const std::string& name, const std::vector<T>& values) {
+            for (const auto& v : values) {
+                IsValueInRange(min, max)(name, v);
+            }
+        };
+    }
+
+    /**
+     * @brief Returns a validator lambda that checks if a string value is a valid RGB color code.
+     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+     *
+     * This allows you to enforce that an argument's value must be a valid RGB color code in the format "rgb(r, g, b)".
+     */
+    inline auto IsAlphaNumeric() {
+        return [](const std::string& name, const std::string& value) {
+            if (!std::all_of(value.begin(), value.end(), ::isalnum)) {
+                throw InvalidValueException("Value '" + value + "' for argument '" + name +
+                    "' must contain only alphanumeric characters");
+            }
+        };
+    }
+
+    /**
+     * @brief Returns a validator lambda that checks if a string value contains only letters.
+     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+     *
+     * This allows you to enforce that an argument's value must contain only alphabetic characters.
+     */
+    inline auto IsAlpha() {
+        return [](const std::string& name, const std::string& value) {
+            if (!std::all_of(value.begin(), value.end(), ::isalpha)) {
+                throw InvalidValueException("Value '" + value + "' for argument '" + name +
+                    "' must contain only alphabetic characters");
+            }
+        };
+    }
+
+    /**
+     * @brief Returns a validator lambda that checks if a string value contains only digits.
+     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+     *
+     * This allows you to enforce that an argument's value must contain only numeric characters.
+     */
+    inline auto IsNumeric() {
+        return [](const std::string& name, const std::string& value) {
+            if (!std::all_of(value.begin(), value.end(), ::isdigit)) {
+                throw InvalidValueException("Value '" + value + "' for argument '" + name +
+                    "' must contain only digits");
+            }
+        };
+    }
+
+    /**
+     * @brief Returns a validator lambda that checks if a string value is a valid path (file or directory).
+     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+     *
+     * This allows you to enforce that an argument's value must be a valid file or directory path.
+     */
+    inline auto IsPath() {
+        return [](const std::string& name, const std::string& value) {
+            std::filesystem::path p(value);
+            // If it's a symlink, resolve to target
+            if (std::filesystem::is_symlink(p)) {
+                p = std::filesystem::read_symlink(p);
+                // If relative, resolve against parent
+                if (p.is_relative()) {
+                    p = std::filesystem::absolute(std::filesystem::path(value).parent_path() / p);
+                }
+            }
+            if (!std::filesystem::exists(p)) {
+                throw InvalidValueException("Value '" + value + "' for argument '" + name + "' does not exist");
+            }
+        };
+    }
+
+    /**
+     * @brief Returns a validator lambda that checks if a string value is a file and if it exists.
+     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+     */
+    inline auto IsFile() {
+        return [](const std::string& name, const std::string& value) {
+            std::filesystem::path p(value);
+            // If it's a symlink, resolve to target
+            if (std::filesystem::is_symlink(p)) {
+                p = std::filesystem::read_symlink(p);
+                // If relative, resolve against parent
+                if (p.is_relative()) {
+                    p = std::filesystem::absolute(std::filesystem::path(value).parent_path() / p);
+                }
+            }
+            if (!std::filesystem::exists(p) || !std::filesystem::is_regular_file(p)) {
+                throw InvalidValueException("Value '" + value + "' for argument '" + name + "' is not a valid file path");
+            }
+        };
+    }
+
+    /**
+     * @brief Returns a validator lambda that checks if a string value is a directory and if it exists.
+     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+     */
+    inline auto IsDirectory() {
+        return [](const std::string& name, const std::string& value) {
+            std::filesystem::path p(value);
+            // If it's a symlink, resolve to target
+            if (std::filesystem::is_symlink(p)) {
+                p = std::filesystem::read_symlink(p);
+                // If relative, resolve against parent
+                if (p.is_relative()) {
+                    p = std::filesystem::absolute(std::filesystem::path(value).parent_path() / p);
+                }
+            }
+            if (!std::filesystem::exists(p) || !std::filesystem::is_directory(p)) {
+                throw InvalidValueException("Value '" + value + "' for argument '" + name + "' is not a valid directory path");
+            }
+        };
+    }
+
+    /**
+     * @brief Returns a validator lambda that checks if a string value is one of the specified valid values.
+     * @param validValues Vector of valid string values
+     * @return Lambda suitable for CliParser::setValidator() and CliParser::ArgBuilder::validate()
+     *
+     * This allows you to enforce that an argument's value must be one of a predefined set of strings.
+     */
+    inline auto IsOneOf(const std::vector<std::string>& validValues) {
+        // Helper function to join vector<string> with a separator
+        auto join = [](const std::vector<std::string>& vec, const std::string& sep) {
+            std::string result;
+            for (size_t i = 0; i < vec.size(); ++i) {
+                if (i > 0) result += sep;
+                result += vec[i];
+            }
+            return result;
+        };
+        return [validValues, join](const std::string& name, const std::string& value) {
+            if (std::find(validValues.begin(), validValues.end(), value) == validValues.end()) {
+                throw InvalidValueException("Value '" + value + "' for argument '" + name +
+                    "' must be one of: " + join(validValues, ", "));
+            }
+        };
+    }
 
     /**
      * @class CliParser
@@ -153,11 +289,22 @@ namespace Argy {
      */
     class CliParser {
     public:
-        // Helper to deduce lambda argument type
+        // Helper to deduce lambda argument types
         template<typename T>
         struct lambda_arg_type;
-        template<typename R, typename C, typename Arg>
-        struct lambda_arg_type<R(C::*)(Arg) const> { using type = Arg; };
+
+        // Single-argument lambda
+        template<typename R, typename C, typename arg>
+        struct lambda_arg_type<R(C::*)(arg) const> { using type = arg; };
+
+        // Two-argument lambda (by value)
+        template<typename R, typename C, typename arg1, typename arg2>
+        struct lambda_arg_type<R(C::*)(arg1, arg2) const> { using type = arg2; };
+
+        // Two-argument lambda (by const reference)
+        template<typename R, typename C, typename arg1, typename arg2>
+        struct lambda_arg_type<R(C::*)(arg1, const arg2&) const> { using type = arg2; };
+
         template<typename F>
         using lambda_arg_t = typename lambda_arg_type<decltype(&F::operator())>::type;
 
@@ -209,7 +356,7 @@ namespace Argy {
 
         /* @brief set validator for an argument
          * @param name Argument name to set the validator for.
-         * @param fn Validation function that takes the argument value and throws InvalidValueException on failure.
+         * @param fn Validation function that takes the argument value and throws TypeMismatchException on failure.
          *
          * This allows you to enforce custom validation rules for argument values.
          */
@@ -221,9 +368,18 @@ namespace Argy {
             auto& arg = m_arguments.at(lookupIt->second);
             using T = lambda_arg_t<F>;
             arg.validator = [fn = std::forward<F>(fn), name](const Value& v) {
-                if (!std::holds_alternative<T>(v))
-                    throw InvalidValueException("Type mismatch in validator for argument '" + name + "'");
-                fn(std::get<T>(v));
+                if constexpr (std::is_invocable_v<F, T>) {
+                    if (!std::holds_alternative<T>(v))
+                        throw TypeMismatchException("Validator type mismatch for argument '" + name + "'");
+                    fn(std::get<T>(v));
+                } else if constexpr (std::is_invocable_v<F, std::string, T>) {
+                    if (!std::holds_alternative<T>(v))
+                        throw TypeMismatchException("Validator type mismatch for argument '" + name + "'");
+                    fn(name, std::get<T>(v));
+                } else {
+                    static_assert(std::is_invocable_v<F, T> || std::is_invocable_v<F, std::string, T>,
+                        "Validator must be invocable with (value) or (name, value)");
+                }
             };
         }
 
@@ -374,6 +530,7 @@ namespace Argy {
          * @throws TypeMismatchException if an argument's type does not match the expected type.
          * @throws UnexpectedPositionalArgumentException if a positional argument is encountered out of order.
          * @throws InvalidValueException if a value cannot be converted to the expected type.
+         * @throws OutOfRangeException if a value is outside the expected range.
          * @note This method automatically handles the --help and -h flags by invoking the help handler.
          */
         void parse() {
@@ -495,7 +652,7 @@ namespace Argy {
                             throw InvalidValueException(std::string("Invalid value for argument '") + (argument.names.empty() ? key : argument.names[0]) + "': " + val + " (" + e.what() + ")");
                         }
                         catch (const std::out_of_range& e) {
-                            throw InvalidValueException(std::string("Value out of range for argument '") + (argument.names.empty() ? key : argument.names[0]) + "': " + val + " (" + e.what() + ")");
+                            throw OutOfRangeException(std::string("Value out of range for argument '") + (argument.names.empty() ? key : argument.names[0]) + "': " + val + " (" + e.what() + ")");
                         }
                     }
                     // Convert list types
