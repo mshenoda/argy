@@ -614,7 +614,7 @@ namespace Argy {
                         currentKey.clear();
                     }
                 }
-                else if (startsWith(token, "-") && token.size() > 1) {
+                else if (startsWith(token, "-") && token.size() > 1 && !isNegativeNumber(token)) {
                     std::string normKey = token.substr(1);
                     // Find by shortName (with or without dash)
                     auto it = std::find_if(m_arguments.begin(), m_arguments.end(), [&](const auto& pair) {
@@ -1034,6 +1034,24 @@ namespace Argy {
         /// @brief checks if a string starts with a given prefix
         static bool startsWith(const std::string& str, const std::string& prefix) {
             return str.size() >= prefix.size() && str.compare(0, prefix.size(), prefix) == 0;
+        }
+
+        /// @brief checks if a string represents a negative number
+        static bool isNegativeNumber(const std::string& str) {
+            if (!startsWith(str, "-") || str.size() <= 1) return false;
+            
+            // Check if the rest is a valid number (integer or float)
+            std::string numberPart = str.substr(1);
+            
+            // Try to parse as float (which also handles integers)
+            try {
+                std::stof(numberPart);
+                return true;
+            } catch (const std::invalid_argument&) {
+                return false;
+            } catch (const std::out_of_range&) {
+                return false;
+            }
         }
 
         /// @brief normalize argument name (strip leading dashes)
