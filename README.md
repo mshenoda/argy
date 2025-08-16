@@ -1,6 +1,12 @@
-<p align="center">
+<div align="center">
   <img src="logo.svg" alt="argy logo" width="100"/>
-</p>
+</div>
+
+<div align="center">
+
+  **Argy: Command-Line Argument Parsing Library for Modern C++**<br>
+  *Because life's too short to parse argv by hand!*
+</div>
 
 <p align="center">
   <a href="LICENSE">
@@ -29,216 +35,357 @@
 </p>
 
 ## Argy
-
-**Argy: Command-Line Parsing Library for Modern C++**<br>
-*Because life’s too short to parse argv by hand!*
-
 Effortless, intuitive, and lightweight command-line argument parsing for C++17 and newer. Argy is a header-only library with zero dependencies, designed to make CLI development simple and type-safe.
 
 *If you love Python's argparse, you'll feel right at home—Argy brings that developer-friendly experience to C++.* 
 
 Perfect for building robust, maintainable command-line tools in modern C++.
 
-## Online Interactive Demo
-
-Try argy in your browser using Compiler Explorer:
-<a href="https://godbolt.org/z/P8xj3xfYW" target="_blank" rel="noopener noreferrer">Open Interavtive Demo on godbolt.org</a>
-
-
-## Features
-- 📦 **Header-only** & zero dependencies
-- 🧩 **Intuitive API** for defining and parsing command-line arguments
-- 🎯 Supports positional, optional, and flag arguments
+## ✨ Features
+- 📦 **Header-only** & zero dependencies, just `#include "argy.hpp"` and go
+- 🧩 **Intuitive API** for defining and parsing command-line arguments. 
+- 🎯 **Argument Types** Supports positional, optional, and flag arguments
+- 🔄 **Flexible Naming**: Support for multiple aliases per argument (e.g., `-v`, `--verbose`, `--debug-mode`)
 - 🔒 **Type-safe** access to parsed values
-- 📝 Customizable help output
+- 📋 **List Support**: Native support for vector arguments with validation
+- 🛡️ **Built-in Validation**: Rich set of validators for common patterns (emails, URLs, file paths, ranges, etc.)
+- **🎨 Beautiful Help**: Auto-generated colorized help messages that look professional out of the box
+- **🎪 Python-like Experience**: Familiar API if you've used Python's argparse
 
-## Installation
+## Demo: 
+🌐 **[Try Argy in your browser on Compiler Explorer!](https://godbolt.org/z/P8xj3xfYW)**
 
-There are several ways to use argy in your project:
 
-- **With CMake (FetchContent) (Recommended):**
-  ```cmake
-  include(FetchContent)
-  FetchContent_Declare(
-    argy
-    GIT_REPOSITORY https://github.com/mshenoda/argy.git
-    GIT_TAG        main # or a specific tag/release
-  )
-  FetchContent_MakeAvailable(argy)
-  target_link_libraries(your_target PRIVATE argy)
-  ```
+## 📦 Installation
 
-- **With CMake (add_subdirectory):**
-  First, clone the repository:
-  ```sh
-  git clone https://github.com/mshenoda/argy.git
-  ```
-  Then, in your CMakeLists.txt:
-  ```cmake
-  add_subdirectory(argy)
-  target_link_libraries(your_target PRIVATE argy)
-  ```
+### CMake (Recommended)
 
-- **Header-only (any project type):** Simply copy the `include/argy.hpp` file into your project.
-
-## API Usage
-
-### Template Methods
-Define arguments and access them with the template API:
-```cpp
-#include "argy.hpp"
-Argy::CliParser cli(argc, argv);
-cli.add<std::string>("image", "Path to input image");            // Positional argument
-cli.add<int>({"-n", "--num-classes"}, "Number of classes", 80);  // Named int argument, with default
-cli.add<bool>({"-s", "--save-vis"}, "Save visualization images"); // Named bool argument
+**With FetchContent:**
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+  argy
+  GIT_REPOSITORY https://github.com/mshenoda/argy.git
+  GIT_TAG        main # or a specific tag/release
+)
+FetchContent_MakeAvailable(argy)
+target_link_libraries(your_target PRIVATE argy)
 ```
 
-### Convenience Methods
-Use named methods for clarity:
-```cpp
-Argy::CliParser cli(argc, argv);
-cli.addString("image", "Path to input image");   // Positional argument
-cli.addInt({"-n", "--num-classes"}, "Number of classes", 80);  // Named int argument, with default
-cli.addBool({"-s", "--save-vis"}, "Save visualization images"); // Named bool argument
-```
+### Header-Only (Any C++ Project Type)
+Simply copy `include/argy.hpp` into your project and `#include "argy.hpp"`.
 
-### Parsing and Accessing Arguments
-Typical usage pattern:
-```cpp
-try {
-  cli.parse();
-  auto image = cli.getString("image");
-  auto threshold = cli.getFloat("threshold");
-} catch (const Argy::Exception& ex) {
-  std::cerr << "Error: " << ex.what() << '\n';
-  cli.printHelp(argv[0]);
-  return 1;
-}
-```
 
-## Full Examples
+## 🚀 Quick Start
 
-### Full example using template methods
 ```cpp
 #include <iostream>
-#include <string>
-#include <vector>
-#include <exception>
 #include "argy.hpp"
 
 int main(int argc, char* argv[]) {
-  Argy::CliParser cli(argc, argv);
-  try {
-    // add arguments using template methods
-    cli.add<std::string>("image", "Path to input image");
-    cli.add<std::string>({"-m", "--model"}, "Path to model");
-    cli.add<float>({"-t", "--threshold"}, "Detection threshold", 0.5f);
-    cli.add<bool>({"-v", "--visualize", "-s", "--show"}, "Visualize results"); // adding argument with aliases 
-    cli.add<Argy::Ints>({"-i", "--input-size"}, "Input size", Argy::Ints{640, 480});
-    cli.add<std::string>({"-o", "--output"}, "Output directory", "results/");
-    cli.add<int>({"-n", "--num-classes"}, "Number of classes", 80);
-
-    // parse arguments
+    Argy::CliParser cli(argc, argv);
+    
+    // Define arguments
+    cli.addString("input", "Input file path");
+    cli.addInt({"-n", "--count"}, "Number of items", 10);
+    cli.addBool({"-v", "--verbose"}, "Enable verbose output");
+    
+    // Parse and use
     cli.parse();
-
-    // get parsed arguments
-    auto image = cli.get<std::string>("image");
-    auto model = cli.get<std::string>("model");
-    auto threshold = cli.get<float>("threshold");
-    auto visualize = cli.get<bool>("visualize");
-    auto inputSize = cli.get<Argy::Ints>("input-size");
-    auto output = cli.get<std::string>("output");
-    auto numClasses = cli.get<int>("num-classes");
-
-    // use the arguments...
-  } catch (const Argy::Exception& ex) {
-    std::cerr << "Error: " << ex.what() << '\n';
-    cli.printHelp(argv[0]);
-    return 1;
-  }
-  return 0;
+    
+    std::cout << "Processing: " << cli.getString("input") << "\n";
+    std::cout << "Count: " << cli.getInt("count") << "\n";
+    std::cout << "Verbose: " << cli.getBool("verbose") << "\n";
+    
+    return 0;
 }
 ```
 
-### Full example using named convenience methods
+**That's it!** Compile and run:
+```bash
+./my_app input.txt --count 42 --verbose
+```
+## 📖 API Guide
+
+Argy offers two equivalent APIs - choose the one you prefer:
+
+### Template API (Type-Safe)
 ```cpp
-#include <iostream>
-#include <string>
-#include <vector>
-#include <exception>
+cli.add<std::string>("file", "Input file");                    // Positional
+cli.add<int>({"-n", "--count"}, "Number of items", 10);        // Optional with default
+cli.add<bool>({"-v", "--verbose"}, "Enable verbose output");   // Flag
+
+// Access values
+auto file = cli.get<std::string>("file");
+auto count = cli.get<int>("count");
+auto verbose = cli.get<bool>("verbose");
+```
+
+### Named Methods API (Explicit)
+```cpp
+cli.addString("file", "Input file");                           // Positional
+cli.addInt({"-n", "--count"}, "Number of items", 10);          // Optional with default
+cli.addBool({"-v", "--verbose"}, "Enable verbose output");     // Flag
+
+// Access values
+auto file = cli.getString("file");
+auto count = cli.getInt("count");
+auto verbose = cli.getBool("verbose");
+```
+
+### Supported Types
+| Type | Template API | Named API | Example |
+|------|-------------|-----------|---------|
+| String | `add<std::string>()` | `addString()` | `"hello"` |
+| Integer | `add<int>()` | `addInt()` | `42` |
+| Float | `add<float>()` | `addFloat()` | `3.14f` |
+| Boolean | `add<bool>()` | `addBool()` | `true` |
+| String List | `add<Argy::Strings>()` | `addStrings()` | `{"a", "b", "c"}` |
+| Integer List | `add<Argy::Ints>()` | `addInts()` | `{1, 2, 3}` |
+| Float List | `add<Argy::Floats>()` | `addFloats()` | `{1.0f, 2.0f}` |
+| Boolean List | `add<Argy::Bools>()` | `addBools()` | `{true, false}` |
+
+## 🛡️ Built-in Validation
+
+Argy provides rich validation capabilities for robust argument parsing:
+
+### Basic Validators
+```cpp
+// Range validation
+cli.add<int>({"-p", "--port"}, "Port number", 8080)
+   .validate(Argy::IsValueInRange(1024, 65535));
+
+// Choice validation  
+cli.add<std::string>({"-m", "--mode"}, "Processing mode", "normal")
+   .validate(Argy::IsOneOf({"normal", "fast", "debug"}));
+
+// Regex validation
+cli.add<std::string>({"-t", "--token"}, "API token")
+   .validate(Argy::IsMatch(R"([A-Za-z0-9]{32})"));
+```
+
+### String Pattern Validators
+```cpp
+// Common patterns
+cli.addString({"-e", "--email"}, "Email address").validate(Argy::IsEmail());
+cli.addString({"-u", "--url"}, "API endpoint").validate(Argy::IsUrl());
+cli.addString({"--ip"}, "Server IP").validate(Argy::IsIPAddress());
+cli.addString({"--mac"}, "MAC address").validate(Argy::IsMACAddress());
+cli.addString({"--uuid"}, "UUID").validate(Argy::IsUUID());
+
+// Character type validation
+cli.addString({"--alpha"}, "Letters only").validate(Argy::IsAlpha());
+cli.addString({"--numeric"}, "Numbers only").validate(Argy::IsNumeric());
+cli.addString({"--alphanum"}, "Alphanumeric").validate(Argy::IsAlphaNumeric());
+```
+
+### File System Validators
+```cpp
+cli.addString({"-f", "--file"}, "Input file").validate(Argy::IsFile());
+cli.addString({"-d", "--dir"}, "Output directory").validate(Argy::IsDirectory());
+cli.addString({"-p", "--path"}, "File or directory").validate(Argy::IsPath());
+```
+
+### Vector Validation
+```cpp
+// Validate all elements in a vector
+cli.add<Argy::Ints>({"-i", "--ids"}, "User IDs")
+   .validate(Argy::IsVectorInRange(1, 1000000));
+```
+
+### Custom Validators
+```cpp
+// Custom validation lambda function
+cli.add<float>({"-r", "--ratio"}, "Ratio value")
+   .validate([](const std::string& name, float value) {
+       if (value < 0.0f || value > 1.0f) {
+           throw Argy::InvalidValueException("Ratio must be between 0.0 and 1.0");
+       }
+   });
+```
+
+## 📋 Complete Examples
+
+### Real-World Example: Image Processing Tool
+
+```cpp
 #include "argy.hpp"
+#include <iostream>
 
 int main(int argc, char* argv[]) {
-  Argy::CliParser cli(argc, argv);
-  try {
-    // add arguments
-    cli.addString("image", "Path to input image");
-    cli.addString({"-m","--model"}, "Path to model");
-    cli.addFloat({"-t","--threshold"}, "Detection threshold", 0.5f);
-    cli.addBool({"-v", "--visualize", "-s", "--show"}, "Visualize results"); // adding argument with multiple aliases 
-    cli.addInts({"-i","--input-size"}, "Input size", Argy::Ints{640, 480});
-    cli.addString({"-o","--output"}, "Output directory", "results/");
-    cli.addInt({"-n", "--num-classes"}, "Number of classes", 80);
-
-    // parse arguments
-    cli.parse();
-
-    // get parsed arguments
-    auto image = cli.getString("image");
-    auto model = cli.getString("model");
-    auto threshold = cli.getFloat("threshold");
-    auto visualize = cli.getBool("visualize");
-    auto inputSize = cli.getInts("input-size");
-    auto output = cli.getString("output");
-    auto numClasses = cli.getInt("num-classes");
-
-    // use the arguments...
-  } catch (const Argy::Exception& ex) {
-    std::cerr << "Error: " << ex.what() << '\n';
-    cli.printHelp(argv[0]);
-    return 1;
-  }
-  return 0;
+    Argy::CliParser cli(argc, argv);
+    
+    try {
+        // Positional arguments (required)
+        cli.addString("input", "Input image path")
+           .validate(Argy::IsFile());
+        
+        // Optional arguments with defaults
+        cli.addString({"-o", "--output"}, "Output directory", "./results/")
+           .validate(Argy::IsDirectory());
+        cli.addInt({"-q", "--quality"}, "JPEG quality (1-100)", 85)
+           .validate(Argy::IsValueInRange(1, 100));
+        cli.addString({"-f", "--format"}, "Output format", "jpg")
+           .validate(Argy::IsOneOf({"jpg", "png", "webp", "tiff"}));
+        
+        // Flags (boolean)
+        cli.addBool({"-v", "--verbose"}, "Enable verbose output");
+        cli.addBool({"-p", "--preview"}, "Generate preview images");
+        
+        // Vector arguments
+        cli.addInts({"-s", "--sizes"}, "Output sizes", Argy::Ints{800, 1200})
+           .validate(Argy::IsVectorInRange(100, 4000));
+        cli.addStrings({"-t", "--tags"}, "Image tags", Argy::Strings{"processed"});
+        
+        // Parse command line
+        cli.parse();
+        
+        // Use parsed values
+        std::cout << "Processing: " << cli.getString("input") << "\n";
+        std::cout << "Output: " << cli.getString("output") << "\n";
+        std::cout << "Quality: " << cli.getInt("quality") << "%\n";
+        std::cout << "Format: " << cli.getString("format") << "\n";
+        
+        if (cli.getBool("verbose")) {
+            std::cout << "Verbose mode enabled\n";
+        }
+        
+        auto sizes = cli.getInts("sizes");
+        std::cout << "Output sizes: ";
+        for (auto size : sizes) std::cout << size << "px ";
+        std::cout << "\n";
+        
+    } catch (const Argy::Exception& ex) {
+        std::cerr << "Error: " << ex.what() << "\n";
+        cli.printHelp(argv[0]);
+        return 1;
+    }
+    
+    return 0;
 }
 ```
 
-## Example Help Output
+**Usage examples:**
+```bash
+# Basic usage
+./image_tool input.jpg
 
-Argy prints a help message when you run your program with `--help` or `-h`, or call `args.printHelp(argv[0]);`. The actual output will be colorized and bold in supported terminals. Here is the plain text of help message:
+# With options
+./image_tool input.jpg --output ./processed --quality 95 --format png
+
+# With verbose and multiple sizes
+./image_tool input.jpg -v --sizes 400 800 1600 --tags "landscape" "hdr"
+
+# Help
+./image_tool --help
+```
+
+## 📺 Beautiful Help Output
+
+Argy automatically generates beautiful, colorized help messages. When you run your program with `--help` or `-h`:
 
 ```
-Usage: ./my_program <image> [options]
+Usage: ./image_tool <input> [options]
 
 Positional:
-  image     Path to input image  (required)
+  input     Input image path  (required)
 
 Options:
-  -m, --model       <string> Path to model             (required)
-  -t, --threshold   <float>  Detection threshold       (default: 0.5)
-  -v, --visualize            Visualize results         (default: false)
-  -i, --input-size  <int[]>  Input size                (default: [640, 480])
-  -o, --output      <string> Output directory          (default: results/)
-  -n, --num-classes <int>    Number of classes         (default: 80)
-  -s, --save-vis             Save visualization images 
-  -h, --help                 Show this help message
+  -o, --output   <string>   Output directory          (default: ./results)
+  -q, --quality  <int>      JPEG quality (1-100)      (default: 85)
+  -f, --format   <string>   Output format             (default: jpg)
+  -v, --verbose             Enable verbose output     (default: false)
+  -p, --preview             Generate preview images   (default: false)
+  -s, --sizes    <int[]>    Output sizes              (default: [800, 1200])
+  -t, --tags     <string[]> Image tags                (default: ["processed"])
+  -h, --help                Show this help message
 ```
 
-> **Note:** The actual output in your terminal will be colorized and bold if ANSI colors are supported.
+> **Note:** The actual output in your terminal will be beautifully colorized with proper highlighting!
 
-## Argument Requirements & API Notes
+## 🔧 Advanced Features
 
-- The main parser class is now `CliParser`.
-- Exception types are more granular: `ReservedArgumentException`, `DuplicateArgumentException`, `InvalidArgumentException`, `UnknownArgumentException`, `MissingArgumentException`, `TypeMismatchException`, `UnexpectedPositionalArgumentException`, `InvalidValueException`.
-- Type aliases for vector arguments: `Bools`, `Ints`, `Floats`, `Strings`.
-- Positional arguments (those without dashes) are always **required** and cannot have default values.
-- Named arguments are **required** by default, but become **optional** if you specify a default value.
-- Flag arguments (e.g., `--save-vis`) do not require a value; their presence sets them to `true`.
-- The parser auto-handles `--help` and `-h` flags and prevents overriding them.
-- Convenience getters: `getInt`, `getFloat`, `getBool`, `getString`, `getInts`, etc.
-- Argument naming conventions are strictly enforced (e.g., `--long` for long names, `-s` for short names).
+### Multiple Aliases
+Arguments can have multiple names for better UX:
+```cpp
+cli.add<bool>({"-v", "--verbose", "--debug-mode"}, "Enable detailed output");
+// Works with: -v, --verbose, or --debug-mode
+```
 
-## Contributing
-Contributions are welcome! Please open issues or pull requests for bug fixes, features, or improvements.
+### Argument Presence Checking
+```cpp
+if (cli.has("verbose")) {
+    std::cout << "Verbose mode was explicitly enabled\n";
+}
+```
+
+### Custom Help Handler
+```cpp
+cli.setHelpHandler([](const std::string& programName) {
+    std::cout << "Custom help for " << programName << "\n";
+    // custom handler logic
+});
+```
+
+### Error Handling
+```cpp
+try {
+    cli.parse();
+} catch (const Argy::MissingArgumentException& ex) {
+    std::cerr << "Missing required argument: " << ex.what() << "\n";
+} catch (const Argy::InvalidValueException& ex) {
+    std::cerr << "Invalid value: " << ex.what() << "\n";
+} catch (const Argy::Exception& ex) {
+    std::cerr << "Argy error: " << ex.what() << "\n";
+}
+```
+
+### Type Aliases
+For convenience, Argy provides type aliases:
+```cpp
+using Argy::Strings;  // std::vector<std::string>
+using Argy::Ints;     // std::vector<int>
+using Argy::Floats;   // std::vector<float>
+using Argy::Bools;    // std::vector<bool>
+```
+
+## 📚 Key Concepts
+
+### Argument Types
+- **Positional**: Arguments without dashes (e.g., `filename`) - can be required or optional
+- **Optional**: Named arguments with dashes (e.g., `--count`, `-v`)
+- **Flags**: Boolean arguments that don't need values (e.g., `--verbose`)
+
+### Argument Requirements
+- **Arguments without default values** are required
+- **Arguments with default values** are optional
+- **Boolean flags** default to `false` and become `true` when specified
+
+### Exception Types
+Argy provides specific exception types for better error handling:
+- `MissingArgumentException` - Required argument not provided
+- `InvalidValueException` - Value cannot be converted or fails validation
+- `UnknownArgumentException` - Unrecognized argument
+- `TypeMismatchException` - Type conversion error
+- `OutOfRangeException` - Value outside expected range
+
+## 🎯 Best Practices
+
+1. **Use validation** for robust input handling
+2. **Provide sensible defaults** for optional arguments
+3. **Use descriptive help text** for better UX
+4. **Handle exceptions gracefully** with proper error messages
+5. **Test with `--help`** to ensure good documentation
+
+## 🤝 Contributing
+
+We welcome contributions! Whether it's:
+- 🐛 **Bug reports** - Found an issue? Let us know!
+- 💡 **Feature requests** - Have an idea? We'd love to hear it!
+- 🔧 **Pull requests** - Want to contribute code? Awesome!
+- 📚 **Documentation** - Help make Argy even easier to use!
+
+Please check our [issues page](https://github.com/mshenoda/argy/issues) or open a new one.
 
 ## Citation
 
