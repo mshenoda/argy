@@ -1,4 +1,4 @@
-// Example: Using template methods with Argy::Parser
+// Example: Comprehensive showcase of Argy library capabilities using template-based API
 #include "argy.hpp"
 #include <iostream>
 #include <vector>
@@ -10,99 +10,131 @@ using namespace Argy;
 int main(int argc, char* argv[]) {
     CliParser cli(argc, argv);
     try {
+        // === POSITIONAL ARGUMENTS ===
+        cli.add<string>("input_file", "Input file path");
+        cli.add<string>("output_file", "Output file path (optional)", "result.txt");
 
-        // Positional argument
-        cli.add<string>("filename", "Input file")
-           .validate(IsFile());
+        // === BASIC TYPES WITH VALIDATION ===
+        // Integer with range validation
+        cli.add<int>({"-c", "--count"}, "Number of items (1-100)", 10)
+           .validate(IsValueInRange(1, 100));
 
-        // Optional argument with multiple aliases
-        cli.add<int>({"-c", "--count", "-n", "--num"}, "Number of items");
+        // Float with custom validation
+        cli.add<float>({"-r", "--ratio"}, "Ratio value (0.0-1.0)", 0.5f)
+           .validate([](const string& name, float value) {
+               if (value < 0.0f || value > 1.0f) 
+                   throw InvalidValueException("Ratio must be between 0.0 and 1.0");
+           });
 
-        cli.add<bool>({"-v", "--visualize", "-s", "--show"}, "Visualize results"); // adding argument with multiple aliases 
+        // Boolean flags
+        cli.add<bool>({"-v", "--verbose"}, "Enable verbose output", false);
+        cli.add<bool>({"-q", "--quiet"}, "Quiet mode", false);
 
-        // Float argument with aliases
-        cli.add<float>({"-r", "--ratio"}, "Ratio value", 0.5f)
-           .validate(IsValueInRange(0.0f, 1.0f)); // Float argument with validation
-
-        cli.add<string>("--role", "Account role", "user")
-           .validate(IsOneOf({"guest", "user", "admin"})); // String argument with validation
-        
-        cli.add<string>("--email", "Email address", "user@email.com")
+        // === STRING VALIDATION ===
+        // Email validation
+        cli.add<string>({"-e", "--email"}, "Contact email", "user@example.com")
            .validate(IsEmail());
-        
-        cli.add<string>("--url", "Website URL", "https://example.com")
+
+        // URL validation
+        cli.add<string>({"-u", "--url"}, "API endpoint URL", "https://api.example.com")
            .validate(IsUrl());
 
-        cli.add<string>("--mac", "MAC address", "00:1A:2B:3C:4D:5E")
-           .validate(IsMACAddress());
+        // Path validation (using setValidator)
+        cli.add<string>({"-d", "--directory"}, "Working directory", ".");
+        cli.setValidator("directory", IsDirectory());
 
-        cli.add<string>("--ip", "IP address", "192.168.1.1")   
-           .validate(IsIPAddress());
+        // Enum-like validation
+        cli.add<string>({"-m", "--mode"}, "Processing mode", "normal")
+           .validate(IsOneOf({"normal", "fast", "safe", "debug"}));
 
-        cli.add<string>("--ipv6", "IPv6 address", "2001:0db8:85a3:0000:0000:8a2e:0370:7334")
-           .validate(IsIPv6());
-        
-        cli.add<string>("--ipv4", "IPv4 address", "192.168.0.1")
-           .validate(IsIPv4());
-
-        cli.add<string>("--uuid", "UUID", "123e4567-e89b-12d3-a456-426614174000")
-           .validate(IsUUID());
-
-        cli.add<string>("--alphaNumeric", "Alpha-numeric string", "abc123")
+        // Alpha-numeric validation
+        cli.add<string>({"-t", "--token"}, "Access token", "ABC123")
            .validate(IsAlphaNumeric());
-        
-        cli.add<string>("--alpha", "Alpha string", "abc")
+
+        // === ADDITIONAL STRING VALIDATORS ===
+        // Alpha-only validation
+        cli.add<string>({"--alpha"}, "Alpha-only string", "abc")
            .validate(IsAlpha());
 
-        cli.add<string>("--numeric", "Numeric string", "123")
-           .validate(IsNumeric());  
-        
-        cli.add<string>("--path", "File or directory path", "./file.txt")
-           .validate(IsPath());   
+        // Numeric-only validation
+        cli.add<string>({"--numeric"}, "Numeric string", "123")
+           .validate(IsNumeric());
 
-        // Vector<int> argument
-        cli.add<Ints>({"-i", "--ids"}, "List of IDs", Ints{1, 2, 3})
-           .validate(IsVectorInRange(1, 100)); // Vector<int> argument with validation
+        // UUID validation
+        cli.add<string>({"--uuid"}, "UUID identifier", "123e4567-e89b-12d3-a456-426614174000")
+           .validate(IsUUID());
 
-        // Vector<float> argument
-        cli.add<Floats>({"-ss", "--scores"}, "List of scores", Floats{0.1f, 0.2f, 0.3f});
+        // === VECTOR TYPES ===
+        // Integer list with range validation
+        cli.add<Ints>({"-i", "--ids"}, "List of IDs (1-999)", Ints{1, 2, 3})
+           .validate(IsVectorInRange(1, 999));
 
-        // Vector<bool> argument
-        cli.add<Bools>({"-f", "--flags"}, "List of flags", Bools{true, false, true});
+        // Float list
+        cli.add<Floats>({"-s", "--scores"}, "Performance scores", Floats{0.8f, 0.9f, 0.75f});
 
-        // Vector<string> argument
-        cli.add<Strings>({"-t", "--tags"}, "List of tags", Strings{"alpha", "beta"});
+        // String list
+        cli.add<Strings>({"-p", "--plugins"}, "Plugin names", Strings{"auth", "logging"});
 
+        // Boolean list
+        cli.add<Bools>({"-f", "--features"}, "Feature flags", Bools{true, false, true});
+
+        // === NETWORK VALIDATION ===
+        cli.add<string>({"--ip"}, "Server IP address", "127.0.0.1")
+           .validate(IsIPAddress());
+
+        cli.add<string>({"--ipv4"}, "IPv4 address", "192.168.1.1")
+           .validate(IsIPv4());
+
+        cli.add<string>({"--ipv6"}, "IPv6 address", "2001:0db8:85a3:0000:0000:8a2e:0370:7334")
+           .validate(IsIPv6());
+
+        cli.add<string>({"--mac"}, "MAC address (optional)", "")
+           .validate([](const string& name, const string& value) {
+               if (!value.empty()) IsMACAddress()(name, value);
+           });
+
+        // === PARSING AND OUTPUT ===
         cli.parse();
 
-        auto count = cli.get<int>("count");
-        auto filename = cli.get<string>("filename");
-        auto visualize = cli.get<bool>("show");
-        auto ratio = cli.get<float>("ratio");
-        auto ids = cli.get<Ints>("ids");
-        auto scores = cli.get<Floats>("scores");
-        auto flags = cli.get<Bools>("flags");
-        auto tags = cli.get<Strings>("tags");
-        auto role = cli.get<string>("role");
-        auto email = cli.get<string>("email");
+        // Display parsed values using template-based get<T>()
+        cout << "=== PARSED ARGUMENTS (Template API) ===\n";
+        cout << "Input File: " << cli.get<string>("input_file") << "\n";
+        cout << "Output File: " << cli.get<string>("output_file") << "\n";
+        cout << "Count: " << cli.get<int>("count") << "\n";
+        cout << "Ratio: " << cli.get<float>("ratio") << "\n";
+        cout << "Verbose: " << (cli.get<bool>("verbose") ? "ON" : "OFF") << "\n";
+        cout << "Quiet: " << (cli.get<bool>("quiet") ? "ON" : "OFF") << "\n";
+        cout << "Email: " << cli.get<string>("email") << "\n";
+        cout << "URL: " << cli.get<string>("url") << "\n";
+        cout << "Directory: " << cli.get<string>("directory") << "\n";
+        cout << "Mode: " << cli.get<string>("mode") << "\n";
+        cout << "Token: " << cli.get<string>("token") << "\n";
+        cout << "Alpha String: " << cli.get<string>("alpha") << "\n";
+        cout << "Numeric String: " << cli.get<string>("numeric") << "\n";
+        cout << "UUID: " << cli.get<string>("uuid") << "\n";
+        cout << "Server IP: " << cli.get<string>("ip") << "\n";
+        cout << "IPv4: " << cli.get<string>("ipv4") << "\n";
+        cout << "IPv6: " << cli.get<string>("ipv6") << "\n";
+        
+        if (cli.has("mac") && !cli.get<string>("mac").empty()) {
+            cout << "MAC Address: " << cli.get<string>("mac") << "\n";
+        }
 
-        cout << "Filename: " << filename << "\n";
-        cout << "Account Role: " << role << "\n";
-        cout << "Email: " << email << "\n";
-        cout << "Count: " << count << "\n";
-        cout << "Visualize: " << (visualize ? "true" : "false") << "\n";
-        cout << "Ratio: " << ratio << "\n";
-        cout << "IDs: ";
-        for (auto v : ids) cout << v << " ";
+        // Vector outputs using template-based API
+        cout << "\nIDs: ";
+        for (auto id : cli.get<Ints>("ids")) cout << id << " ";
         cout << "\nScores: ";
-        for (auto v : scores) cout << v << " ";
-        cout << "\nFlags: ";
-        for (auto v : flags) cout << (v ? "true" : "false") << " ";
-        cout << "\nTags: ";
-        for (const auto& v : tags) cout << v << " ";
+        for (auto score : cli.get<Floats>("scores")) cout << score << " ";
+        cout << "\nPlugins: ";
+        for (const auto& plugin : cli.get<Strings>("plugins")) cout << plugin << " ";
+        cout << "\nFeatures: ";
+        for (auto feature : cli.get<Bools>("features")) cout << (feature ? "ON" : "OFF") << " ";
         cout << "\n";
-    } catch (const std::exception& ex) {
+
+    } catch (const Argy::Exception& ex) {
         cerr << "Error: " << ex.what() << endl;
         return 1;
     }
+
+    return 0;
 }

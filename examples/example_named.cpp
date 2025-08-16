@@ -1,4 +1,4 @@
-// Example: Using named (convenience) methods with Argy::Parser
+// Example: Comprehensive showcase of Argy library capabilities
 #include "argy.hpp"
 #include <iostream>
 #include <vector>
@@ -10,60 +10,104 @@ using namespace Argy;
 int main(int argc, char* argv[]) {
     CliParser cli(argc, argv);
     try {
-        // Positional argument
-        cli.addString("filename", "Input file");
-  
-        // Optional argument with multiple aliases
-        cli.addInt({"-c", "--count", "-n", "--num"}, "Number of items", 10).validate([](int value) {
-            if (value <= 0) throw InvalidValueException("count must be greater than 0");
-        });
+        // === POSITIONAL ARGUMENTS ===
+        cli.addString("input_file", "Input file path");
+        cli.addString("output_file", "Output file path (optional)", "result.txt");
 
-        // Optional boolean flag
+        // === BASIC TYPES WITH VALIDATION ===
+        // Integer with range validation
+        cli.addInt({"-c", "--count"}, "Number of items (1-100)", 10)
+           .validate(IsValueInRange(1, 100));
+
+        // Float with custom validation
+        cli.addFloat({"-r", "--ratio"}, "Ratio value (0.0-1.0)", 0.5f)
+           .validate([](const string& name, float value) {
+               if (value < 0.0f || value > 1.0f) 
+                   throw InvalidValueException("Ratio must be between 0.0 and 1.0");
+           });
+
+        // Boolean flags
         cli.addBool({"-v", "--verbose"}, "Enable verbose output", false);
+        cli.addBool({"-q", "--quiet"}, "Quiet mode", false);
 
-        // Float argument
-        cli.addFloat({"-r", "--ratio"}, "Ratio value", 0.5f);
-        cli.setValidator("ratio", [](float value) {
-            if (value < 0.0f || value > 1.0f) throw InvalidValueException("ratio must be between 0 and 1");
-        });
+        // === STRING VALIDATION ===
+        // Email validation
+        cli.addString({"-e", "--email"}, "Contact email", "user@example.com")
+           .validate(IsEmail());
 
-        // Vector<int> argument
-        cli.addInts({"-i", "--ids"}, "List of IDs", Ints{1, 2, 3});
+        // URL validation
+        cli.addString({"-u", "--url"}, "API endpoint URL", "https://api.example.com")
+           .validate(IsUrl());
 
-        // Vector<float> argument
-        cli.addFloats({"-s", "--scores"}, "List of scores", Floats{0.1f, 0.2f, 0.3f});
+        // Path validation (using setValidator)
+        cli.addString({"-d", "--directory"}, "Working directory", ".");
+        cli.setValidator("directory", IsDirectory());
 
-        // Vector<bool> argument
-        cli.addBools({"-f", "--flags"}, "List of flags", Bools{true, false, true});
+        // Enum-like validation
+        cli.addString({"-m", "--mode"}, "Processing mode", "normal")
+           .validate(IsOneOf({"normal", "fast", "safe", "debug"}));
 
-        // Vector<string> argument
-        cli.addStrings({"-t", "--tags"}, "List of tags", Strings{"alpha", "beta"});
+        // Alpha-numeric validation
+        cli.addString({"-t", "--token"}, "Access token", "ABC123")
+           .validate(IsAlphaNumeric());
 
+        // === VECTOR TYPES ===
+        // Integer list with range validation
+        cli.addInts({"-i", "--ids"}, "List of IDs (1-999)", Ints{1, 2, 3})
+           .validate(IsVectorInRange(1, 999));
+
+        // Float list
+        cli.addFloats({"-s", "--scores"}, "Performance scores", Floats{0.8f, 0.9f, 0.75f});
+
+        // String list
+        cli.addStrings({"-p", "--plugins"}, "Plugin names", Strings{"auth", "logging"});
+
+        // Boolean list
+        cli.addBools({"-f", "--features"}, "Feature flags", Bools{true, false, true});
+
+        // === NETWORK VALIDATION ===
+        cli.addString({"--ip"}, "Server IP address", "127.0.0.1")
+           .validate(IsIPAddress());
+
+        cli.addString({"--mac"}, "MAC address (optional)", "")
+           .validate([](const string& name, const string& value) {
+               if (!value.empty()) IsMACAddress()(name, value);
+           });
+
+        // === PARSING AND OUTPUT ===
         cli.parse();
 
-        auto count = cli.getInt("n");
-        auto filename = cli.getString("filename");
-        auto verbose = cli.getBool("verbose");
-        auto ratio = cli.getFloat("ratio");
-        auto ids = cli.getInts("ids");
-        auto scores = cli.getFloats("scores");
-        auto flags = cli.getBools("flags");
-        auto tags = cli.getStrings("tags");
+        // Display parsed values
+        cout << "=== PARSED ARGUMENTS ===\n";
+        cout << "Input File: " << cli.getString("input_file") << "\n";
+        cout << "Output File: " << cli.getString("output_file") << "\n";
+        cout << "Count: " << cli.getInt("count") << "\n";
+        cout << "Ratio: " << cli.getFloat("ratio") << "\n";
+        cout << "Verbose: " << (cli.getBool("verbose") ? "ON" : "OFF") << "\n";
+        cout << "Quiet: " << (cli.getBool("quiet") ? "ON" : "OFF") << "\n";
+        cout << "Email: " << cli.getString("email") << "\n";
+        cout << "URL: " << cli.getString("url") << "\n";
+        cout << "Directory: " << cli.getString("directory") << "\n";
+        cout << "Mode: " << cli.getString("mode") << "\n";
+        cout << "Token: " << cli.getString("token") << "\n";
+        cout << "Server IP: " << cli.getString("ip") << "\n";
+        
+        if (cli.has("mac") && !cli.getString("mac").empty()) {
+            cout << "MAC Address: " << cli.getString("mac") << "\n";
+        }
 
-        cout << "Filename: " << filename << "\n";
-        cout << "Count: " << count << "\n";
-        cout << "Verbose: " << (verbose ? "true" : "false") << "\n";
-        cout << "Ratio: " << ratio << "\n";
-        cout << "IDs: ";
-        for (auto v : ids) cout << v << " ";
+        // Vector outputs
+        cout << "\nIDs: ";
+        for (auto id : cli.getInts("ids")) cout << id << " ";
         cout << "\nScores: ";
-        for (auto v : scores) cout << v << " ";
-        cout << "\nFlags: ";
-        for (auto v : flags) cout << (v ? "true" : "false") << " ";
-        cout << "\nTags: ";
-        for (const auto& v : tags) cout << v << " ";
+        for (auto score : cli.getFloats("scores")) cout << score << " ";
+        cout << "\nPlugins: ";
+        for (const auto& plugin : cli.getStrings("plugins")) cout << plugin << " ";
+        cout << "\nFeatures: ";
+        for (auto feature : cli.getBools("features")) cout << (feature ? "ON" : "OFF") << " ";
         cout << "\n";
-    } catch (const std::exception& ex) {
+
+    } catch (const Argy::Exception& ex) {
         cerr << "Error: " << ex.what() << std::endl;
         return 1;
     }

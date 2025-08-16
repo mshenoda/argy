@@ -1045,7 +1045,7 @@ namespace Argy {
             
             // Try to parse as float (which also handles integers)
             try {
-                std::stof(numberPart);
+                auto num = std::stof(numberPart);
                 return true;
             } catch (const std::invalid_argument&) {
                 return false;

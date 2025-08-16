@@ -13,6 +13,8 @@ if(PROJECT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     option(BUILD_EXAMPLES "Build example programs" ON)
 
     if(BUILD_EXAMPLES)
+        add_executable(example_basic examples/example_basic.cpp)
+        target_link_libraries(example_basic PRIVATE argy)
         add_executable(example_template examples/example_template.cpp)
         target_link_libraries(example_template PRIVATE argy)
         add_executable(example_named examples/example_named.cpp)
