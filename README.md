@@ -83,21 +83,21 @@ Simply copy `include/argy.hpp` into your project and `#include "argy.hpp"`.
 #include "argy.hpp"
 
 int main(int argc, char* argv[]) {
-    Argy::CliParser cli(argc, argv);
+  Argy::CliParser cli(argc, argv);
     
-    // Define arguments
-    cli.addString("input", "Input file path");
-    cli.addInt({"-n", "--count"}, "Number of items", 10);
-    cli.addBool({"-v", "--verbose"}, "Enable verbose output");
+  // Define arguments
+  cli.addString("input", "Input file path");
+  cli.addInt({"-n", "--count"}, "Number of items", 10);
+  cli.addBool({"-v", "--verbose"}, "Enable verbose output");
     
-    // Parse and use
-    cli.parse();
+  // Parse and use
+  auto args = cli.parse();
     
-    std::cout << "Processing: " << cli.getString("input") << "\n";
-    std::cout << "Count: " << cli.getInt("count") << "\n";
-    std::cout << "Verbose: " << cli.getBool("verbose") << "\n";
+  std::cout << "Input: " << args.get<std::string>("input") << "\n";
+  std::cout << "Count: " << args.get<int>("count") << "\n";
+  std::cout << "Verbose: " << (args.get<bool>("verbose") ? "true" : "false") << "\n";
     
-    return 0;
+  return 0;
 }
 ```
 
@@ -115,10 +115,11 @@ cli.add<std::string>("file", "Input file");                    // Positional
 cli.add<int>({"-n", "--count"}, "Number of items", 10);        // Optional with default
 cli.add<bool>({"-v", "--verbose"}, "Enable verbose output");   // Flag
 
-// Access values
-auto file = cli.get<std::string>("file");
-auto count = cli.get<int>("count");
-auto verbose = cli.get<bool>("verbose");
+// Access values (using ParsedArgs)
+auto args = cli.parse();
+auto file = args.get<std::string>("file");
+auto count = args.get<int>("count");
+auto verbose = args.get<bool>("verbose");
 ```
 
 ### Named Methods API (Explicit)
@@ -127,10 +128,11 @@ cli.addString("file", "Input file");                           // Positional
 cli.addInt({"-n", "--count"}, "Number of items", 10);          // Optional with default
 cli.addBool({"-v", "--verbose"}, "Enable verbose output");     // Flag
 
-// Access values
-auto file = cli.getString("file");
-auto count = cli.getInt("count");
-auto verbose = cli.getBool("verbose");
+// Access values (using ParsedArgs)
+auto args = cli.parse();
+auto file = args.get<std::string>("file");
+auto count = args.get<int>("count");
+auto verbose = args.get<bool>("verbose");
 ```
 
 ### Supported Types
@@ -314,8 +316,9 @@ cli.add<bool>({"-v", "--verbose", "--debug-mode"}, "Enable detailed output");
 
 ### Argument Presence Checking
 ```cpp
-if (cli.has("verbose")) {
-    std::cout << "Verbose mode was explicitly enabled\n";
+auto args = cli.parse();
+if (args.has("verbose")) {
+  std::cout << "Verbose mode was explicitly enabled\n";
 }
 ```
 
@@ -330,13 +333,13 @@ cli.setHelpHandler([](const std::string& programName) {
 ### Error Handling
 ```cpp
 try {
-    cli.parse();
+  auto args = cli.parse();
 } catch (const Argy::MissingArgumentException& ex) {
-    std::cerr << "Missing required argument: " << ex.what() << "\n";
+  std::cerr << "Missing required argument: " << ex.what() << "\n";
 } catch (const Argy::InvalidValueException& ex) {
-    std::cerr << "Invalid value: " << ex.what() << "\n";
+  std::cerr << "Invalid value: " << ex.what() << "\n";
 } catch (const Argy::Exception& ex) {
-    std::cerr << "Argy error: " << ex.what() << "\n";
+  std::cerr << "Argy error: " << ex.what() << "\n";
 }
 ```
 
