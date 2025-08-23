@@ -93,43 +93,43 @@ int main(int argc, char* argv[]) {
                if (!value.empty()) IsMACAddress()(name, value);
            });
 
-        // === PARSING AND OUTPUT ===
-        cli.parse();
+      // === PARSING AND OUTPUT ===
+      auto args = cli.parse();
 
-        // Display parsed values using template-based get<T>()
-        cout << "=== PARSED ARGUMENTS (Template API) ===\n";
-        cout << "Input File: " << cli.get<string>("input_file") << "\n";
-        cout << "Output File: " << cli.get<string>("output_file") << "\n";
-        cout << "Count: " << cli.get<int>("count") << "\n";
-        cout << "Ratio: " << cli.get<float>("ratio") << "\n";
-        cout << "Verbose: " << (cli.get<bool>("verbose") ? "ON" : "OFF") << "\n";
-        cout << "Quiet: " << (cli.get<bool>("quiet") ? "ON" : "OFF") << "\n";
-        cout << "Email: " << cli.get<string>("email") << "\n";
-        cout << "URL: " << cli.get<string>("url") << "\n";
-        cout << "Directory: " << cli.get<string>("directory") << "\n";
-        cout << "Mode: " << cli.get<string>("mode") << "\n";
-        cout << "Token: " << cli.get<string>("token") << "\n";
-        cout << "Alpha String: " << cli.get<string>("alpha") << "\n";
-        cout << "Numeric String: " << cli.get<string>("numeric") << "\n";
-        cout << "UUID: " << cli.get<string>("uuid") << "\n";
-        cout << "Server IP: " << cli.get<string>("ip") << "\n";
-        cout << "IPv4: " << cli.get<string>("ipv4") << "\n";
-        cout << "IPv6: " << cli.get<string>("ipv6") << "\n";
-        
-        if (cli.has("mac") && !cli.get<string>("mac").empty()) {
-            cout << "MAC Address: " << cli.get<string>("mac") << "\n";
-        }
+      // Display parsed values using template-based get<T>() from parsed args
+      cout << "=== PARSED ARGUMENTS (Template API) ===\n";
+      cout << "Input File: " << args.get<string>("input_file") << "\n";
+      cout << "Output File: " << args.get<string>("output_file") << "\n";
+      cout << "Count: " << args.get<int>("count") << "\n";
+      cout << "Ratio: " << args.get<float>("ratio") << "\n";
+      cout << "Verbose: " << (args.get<bool>("verbose") ? "ON" : "OFF") << "\n";
+      cout << "Quiet: " << (args.get<bool>("quiet") ? "ON" : "OFF") << "\n";
+      cout << "Email: " << args.get<string>("email") << "\n";
+      cout << "URL: " << args.get<string>("url") << "\n";
+      cout << "Directory: " << args.get<string>("directory") << "\n";
+      cout << "Mode: " << args.get<string>("mode") << "\n";
+      cout << "Token: " << args.get<string>("token") << "\n";
+      cout << "Alpha String: " << args.get<string>("alpha") << "\n";
+      cout << "Numeric String: " << args.get<string>("numeric") << "\n";
+      cout << "UUID: " << args.get<string>("uuid") << "\n";
+      cout << "Server IP: " << args.get<string>("ip") << "\n";
+      cout << "IPv4: " << args.get<string>("ipv4") << "\n";
+      cout << "IPv6: " << args.get<string>("ipv6") << "\n";
 
-        // Vector outputs using template-based API
-        cout << "\nIDs: ";
-        for (auto id : cli.get<Ints>("ids")) cout << id << " ";
-        cout << "\nScores: ";
-        for (auto score : cli.get<Floats>("scores")) cout << score << " ";
-        cout << "\nPlugins: ";
-        for (const auto& plugin : cli.get<Strings>("plugins")) cout << plugin << " ";
-        cout << "\nFeatures: ";
-        for (auto feature : cli.get<Bools>("features")) cout << (feature ? "ON" : "OFF") << " ";
-        cout << "\n";
+      if (args.has("mac") && !args.get<string>("mac").empty()) {
+         cout << "MAC Address: " << args.get<string>("mac") << "\n";
+      }
+
+      // Vector outputs using template-based API
+      cout << "\nIDs: ";
+      for (auto id : args.get<Ints>("ids")) cout << id << " ";
+      cout << "\nScores: ";
+      for (auto score : args.get<Floats>("scores")) cout << score << " ";
+      cout << "\nPlugins: ";
+      for (const auto& plugin : args.get<Strings>("plugins")) cout << plugin << " ";
+      cout << "\nFeatures: ";
+      for (auto feature : args.get<Bools>("features")) cout << (feature ? "ON" : "OFF") << " ";
+      cout << "\n";
 
     } catch (const Argy::Exception& ex) {
         cerr << "Error: " << ex.what() << endl;

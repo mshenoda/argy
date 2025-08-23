@@ -75,37 +75,37 @@ int main(int argc, char* argv[]) {
            });
 
         // === PARSING AND OUTPUT ===
-        cli.parse();
+      auto args = cli.parse();
 
-        // Display parsed values
-        cout << "=== PARSED ARGUMENTS ===\n";
-        cout << "Input File: " << cli.getString("input_file") << "\n";
-        cout << "Output File: " << cli.getString("output_file") << "\n";
-        cout << "Count: " << cli.getInt("count") << "\n";
-        cout << "Ratio: " << cli.getFloat("ratio") << "\n";
-        cout << "Verbose: " << (cli.getBool("verbose") ? "ON" : "OFF") << "\n";
-        cout << "Quiet: " << (cli.getBool("quiet") ? "ON" : "OFF") << "\n";
-        cout << "Email: " << cli.getString("email") << "\n";
-        cout << "URL: " << cli.getString("url") << "\n";
-        cout << "Directory: " << cli.getString("directory") << "\n";
-        cout << "Mode: " << cli.getString("mode") << "\n";
-        cout << "Token: " << cli.getString("token") << "\n";
-        cout << "Server IP: " << cli.getString("ip") << "\n";
-        
-        if (cli.has("mac") && !cli.getString("mac").empty()) {
-            cout << "MAC Address: " << cli.getString("mac") << "\n";
-        }
+      // Display parsed values from parsed args
+      cout << "=== PARSED ARGUMENTS ===\n";
+      cout << "Input File: " << args.get<string>("input_file") << "\n";
+      cout << "Output File: " << args.get<string>("output_file") << "\n";
+      cout << "Count: " << args.get<int>("count") << "\n";
+      cout << "Ratio: " << args.get<float>("ratio") << "\n";
+      cout << "Verbose: " << (args.get<bool>("verbose") ? "ON" : "OFF") << "\n";
+      cout << "Quiet: " << (args.get<bool>("quiet") ? "ON" : "OFF") << "\n";
+      cout << "Email: " << args.get<string>("email") << "\n";
+      cout << "URL: " << args.get<string>("url") << "\n";
+      cout << "Directory: " << args.get<string>("directory") << "\n";
+      cout << "Mode: " << args.get<string>("mode") << "\n";
+      cout << "Token: " << args.get<string>("token") << "\n";
+      cout << "Server IP: " << args.get<string>("ip") << "\n";
 
-        // Vector outputs
-        cout << "\nIDs: ";
-        for (auto id : cli.getInts("ids")) cout << id << " ";
-        cout << "\nScores: ";
-        for (auto score : cli.getFloats("scores")) cout << score << " ";
-        cout << "\nPlugins: ";
-        for (const auto& plugin : cli.getStrings("plugins")) cout << plugin << " ";
-        cout << "\nFeatures: ";
-        for (auto feature : cli.getBools("features")) cout << (feature ? "ON" : "OFF") << " ";
-        cout << "\n";
+      if (args.has("mac") && !args.get<string>("mac").empty()) {
+         cout << "MAC Address: " << args.get<string>("mac") << "\n";
+      }
+
+      // Vector outputs
+      cout << "\nIDs: ";
+      for (auto id : args.get<Ints>("ids")) cout << id << " ";
+      cout << "\nScores: ";
+      for (auto score : args.get<Floats>("scores")) cout << score << " ";
+      cout << "\nPlugins: ";
+      for (const auto& plugin : args.get<Strings>("plugins")) cout << plugin << " ";
+      cout << "\nFeatures: ";
+      for (auto feature : args.get<Bools>("features")) cout << (feature ? "ON" : "OFF") << " ";
+      cout << "\n";
 
     } catch (const Argy::Exception& ex) {
         cerr << "Error: " << ex.what() << std::endl;

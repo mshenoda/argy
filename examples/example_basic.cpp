@@ -42,38 +42,38 @@ int main(int argc, char* argv[]) {
         cli.addFloats({"-s", "--scores"}, "Score values", Floats{0.5f, 0.7f});
 
         // === PARSE ARGUMENTS ===
-        cli.parse();
+        auto args = cli.parse();
 
-        // === ACCESS PARSED VALUES ===
+        // === PARSED Arguments ===
         cout << "=== Basic Argy Example ===\n";
-        cout << "Input file: " << cli.getString("filename") << "\n";
-        cout << "Output file: " << cli.getString("output") << "\n";
-        cout << "Count: " << cli.getInt("count") << "\n";
-        cout << "Rate: " << cli.getFloat("rate") << "\n";
-        cout << "Verbose: " << (cli.getBool("verbose") ? "ON" : "OFF") << "\n";
-        cout << "Debug: " << (cli.getBool("debug") ? "ON" : "OFF") << "\n";
-        cout << "Username: " << cli.getString("name") << "\n";
+        cout << "Input file: " << args.get<string>("filename") << "\n";
+        cout << "Output file: " << args.get<string>("output") << "\n";
+        cout << "Count: " << args.get<int>("count") << "\n";
+        cout << "Rate: " << args.get<float>("rate") << "\n";
+        cout << "Verbose: " << (args.get<bool>("verbose") ? "ON" : "OFF") << "\n";
+        cout << "Debug: " << (args.get<bool>("debug") ? "ON" : "OFF") << "\n";
+        cout << "Username: " << args.get<string>("name") << "\n";
 
         // Display vector values
         cout << "\nList values:\n";
         cout << "IDs: ";
-        for (int id : cli.getInts("ids")) {
+        for (int id : args.get<Ints>("ids")) {
             cout << id << " ";
         }
         cout << "\nTags: ";
-        for (const string& tag : cli.getStrings("tags")) {
+        for (const string& tag : args.get<Strings>("tags")) {
             cout << tag << " ";
         }
         cout << "\nScores: ";
-        for (float score : cli.getFloats("scores")) {
+        for (float score : args.get<Floats>("scores")) {
             cout << score << " ";
         }
         cout << "\n";
 
         // === DEMONSTRATE has() METHOD ===
         cout << "\nArgument presence check:\n";
-        cout << "Verbose flag provided: " << (cli.has("verbose") ? "YES" : "NO") << "\n";
-        cout << "Debug flag provided: " << (cli.has("debug") ? "YES" : "NO") << "\n";
+        cout << "Verbose flag provided: " << (args.has("verbose") ? "YES" : "NO") << "\n";
+        cout << "Debug flag provided: " << (args.has("debug") ? "YES" : "NO") << "\n";
 
     } catch (const std::exception& ex) {
         cerr << "Error: " << ex.what() << endl;
