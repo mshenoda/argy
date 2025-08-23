@@ -331,12 +331,269 @@ namespace Argy {
         return IsMatch(R"(^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$)");
     }
 
-    /// @class CliParser
-    /// @brief Command-line argument parser inspired by Python's argparse.
-    /// This class provides a flexible and type-safe way to define, parse, and validate command-line arguments.
-    /// It supports positional and optional arguments, type validation, default values, required arguments,
-    /// list arguments, shorthand options, and automatic help message generation.
-    class CliParser {
+    /// @class CliData
+    /// @brief Base class for argument storage (no public API)
+    /// This class contains all the data structures and utility methods needed for argument management.
+    class CliData {
+    public:
+        /// @brief Variant to hold any supported argument value type.
+        /// This variant is used for storing argument values of different types, including lists.
+        using ArgValue = std::variant<
+            std::monostate,      ///< No value
+            std::string,         ///< String value
+            int,                 ///< Integer value
+            float,               ///< Floating-point value
+            bool,                ///< Boolean value
+            std::vector<std::string>, ///< List of strings
+            std::vector<int>,         ///< List of integers
+            std::vector<float>,       ///< List of floats
+            std::vector<bool>>;       ///< List of booleans
+
+        /// @brief Supported argument types for validation and parsing.
+        enum class ArgType {
+            String,     ///< Single string value
+            Int,        ///< Single integer value
+            Float,      ///< Single float value
+            Bool,       ///< Single boolean value
+            StringList, ///< List of strings
+            IntList,    ///< List of integers
+            FloatList,  ///< List of floats
+            BoolList    ///< List of booleans
+        };
+
+        /// @struct ArgData
+        /// @brief Represents one command-line argument and its metadata.
+        struct ArgData {
+            std::vector<std::string> names; ///< All normalized names/aliases (no leading dashes)
+            std::vector<std::string> shortForms; ///< short forms (without dash)
+            std::vector<std::string> longForms;  ///< long forms (without dashes)
+            std::string help;       ///< Help/description string.
+            bool required{ true };  ///< True if argument must be provided by the user.
+            ArgType type{ ArgType::String }; ///< Argument type.
+            ArgValue defaultValue;     ///< Default value if any.
+            ArgValue parsedValue;     ///< Parsed value if any.
+            bool positional{ false }; ///< True if this is a positional argument.
+            std::function<void(const ArgValue&)> validator; ///< Optional value validator
+        };
+
+    protected:
+        // Storage for arguments and metadata
+        std::unordered_map<std::string, std::string> m_nameLookup; ///< Maps argument names to canonical keys.
+        std::unordered_map<std::string, ArgData> m_arguments; ///< Map of all arguments.
+        std::vector<std::string> m_positionalOrder; ///< Order of positional arguments.
+        bool m_useColors = true; ///< Whether to use colors in help output
+
+    public:
+        /// @brief Default constructor
+        CliData() = default;
+        
+        /// @brief Copy constructor to enable copying of protected state
+        /// @param other The CliData instance to copy from
+        CliData(const CliData& other) = default;
+
+        /// @brief checks if a string starts with a given prefix
+        static bool startsWith(const std::string& str, const std::string& prefix) {
+            return str.size() >= prefix.size() && str.compare(0, prefix.size(), prefix) == 0;
+        }
+
+        /// @brief checks if a string represents a negative number
+        static bool isNegativeNumber(const std::string& str) {
+            if (!startsWith(str, "-") || str.size() <= 1) return false;
+            
+            // Check if the rest is a valid number (integer or float)
+            std::string numberPart = str.substr(1);
+            
+            // Try to parse as float (which also handles integers)
+            try {
+                auto num = std::stof(numberPart);
+                return true;
+            } catch (const std::invalid_argument&) {
+                return false;
+            } catch (const std::out_of_range&) {
+                return false;
+            }
+        }
+
+        /// @brief normalize argument name (strip leading dashes)
+        static std::string normalizeName(const std::string& name) {
+            if (startsWith(name, "--")) return name.substr(2);
+            if (startsWith(name, "-")) return name.substr(1);
+            return name;
+        }
+
+        /// @brief Converts ArgValue variant to string for defaults and printing.
+        /// @param value The ArgValue to convert.
+        /// @return String representation of the value.
+        static std::string toString(const ArgValue& value) {
+            if (std::holds_alternative<std::string>(value)) return std::get<std::string>(value);
+            if (std::holds_alternative<int>(value)) return std::to_string(std::get<int>(value));
+            if (std::holds_alternative<float>(value)) return std::to_string(std::get<float>(value));
+            if (std::holds_alternative<bool>(value)) return std::get<bool>(value) ? "true" : "false";
+            if (std::holds_alternative<std::vector<std::string>>(value)) {
+                const auto& vec = std::get<std::vector<std::string>>(value);
+                std::string out = "[";
+                for (size_t i = 0; i < vec.size(); ++i) {
+                    if (i > 0) out += ", ";
+                    out += '"' + vec[i] + '"';
+                }
+                out += "]";
+                return out;
+            }
+            if (std::holds_alternative<std::vector<int>>(value)) {
+                const auto& vec = std::get<std::vector<int>>(value);
+                std::string out = "[";
+                for (size_t i = 0; i < vec.size(); ++i) {
+                    if (i > 0) out += ", ";
+                    out += std::to_string(vec[i]);
+                }
+                out += "]";
+                return out;
+            }
+            if (std::holds_alternative<std::vector<float>>(value)) {
+                const auto& vec = std::get<std::vector<float>>(value);
+                std::string out = "[";
+                for (size_t i = 0; i < vec.size(); ++i) {
+                    if (i > 0) out += ", ";
+                    out += std::to_string(vec[i]);
+                }
+                out += "]";
+                return out;
+            }
+            if (std::holds_alternative<std::vector<bool>>(value)) {
+                const auto& vec = std::get<std::vector<bool>>(value);
+                std::string out = "[";
+                for (size_t i = 0; i < vec.size(); ++i) {
+                    if (i > 0) out += ", ";
+                    out += vec[i] ? "true" : "false";
+                }
+                out += "]";
+                return out;
+            }
+            return "";
+        }
+
+        /// @brief Check if a type is a std::vector.
+        /// This is a type trait to determine if a type is a std::vector.
+        /// @tparam T Type to check.
+        template<typename T>
+        struct is_vector : std::false_type {};
+        /// @brief Specialization for std::vector types.
+        /// @tparam T Element type of the vector.
+        /// @tparam A Allocator type of the vector.
+        template<typename T, typename A>
+        struct is_vector<std::vector<T, A>> : std::true_type {};
+
+        /// @brief Check if an ArgType represents a list type.
+        /// @param type The ArgType to check.
+        /// @return True if the type is a list type, false otherwise.
+        static bool isListType(ArgType type) {
+            return type == ArgType::StringList || type == ArgType::IntList ||
+                type == ArgType::FloatList || type == ArgType::BoolList;
+        }
+
+        /// @brief Deduce ArgType enum from C++ type.
+        /// @tparam T C++ type to deduce from.
+        /// @return Corresponding ArgType value.
+        template<typename T>
+        static constexpr ArgType deduceArgType() {
+            if constexpr (std::is_same_v<T, int>) return ArgType::Int;
+            else if constexpr (std::is_same_v<T, float>) return ArgType::Float;
+            else if constexpr (std::is_same_v<T, bool>) return ArgType::Bool;
+            else if constexpr (std::is_same_v<T, std::string>) return ArgType::String;
+            else if constexpr (std::is_same_v<T, std::vector<int>>) return ArgType::IntList;
+            else if constexpr (std::is_same_v<T, std::vector<float>>) return ArgType::FloatList;
+            else if constexpr (std::is_same_v<T, std::vector<bool>>) return ArgType::BoolList;
+            else if constexpr (std::is_same_v<T, std::vector<std::string>>) return ArgType::StringList;
+            else static_assert(sizeof(T) == 0, "Unsupported argument type");
+        }
+    };
+
+    /// @class CliReader
+    /// @brief Read-only access to parsed command-line arguments
+    /// This class provides methods to retrieve argument values after parsing.
+    class CliReader : public virtual CliData {
+    public:
+        /// @brief Default constructor
+        CliReader() = default;
+
+        /// @brief Copy constructor for internal use
+        /// @param other The CliData instance to copy from
+        CliReader(const CliData& other) : CliData(other) {
+            // Base class copy constructor handles the copying
+        }
+
+        /// @brief Get the parsed argument value by name.
+        /// @tparam T Expected argument type.
+        /// @param name Argument name.
+        /// @return Parsed argument value of type T.
+        /// @throws UnknownArgumentException if the argument is not found.
+        /// @throws TypeMismatchException if the argument type does not match T.
+        template<typename T>
+        T get(const std::string& name) const {
+            std::string normName = normalizeName(name);
+            auto lookupIt = m_nameLookup.find(normName);
+            if (lookupIt == m_nameLookup.end()) throw UnknownArgumentException("Argument not found: " + name);
+            const ArgData& arg = m_arguments.at(lookupIt->second);
+            // Special handling for bool: always optional, default is false if not present
+            if constexpr (std::is_same_v<T, bool>) {
+                if (std::holds_alternative<bool>(arg.parsedValue)) {
+                    return std::get<bool>(arg.parsedValue);
+                }
+                return false;
+            }
+            // Handle vector types
+            if constexpr (is_vector<T>::value) {
+                if (std::holds_alternative<T>(arg.parsedValue)) {
+                    return std::get<T>(arg.parsedValue);
+                }
+                else if (!std::holds_alternative<std::monostate>(arg.defaultValue) && std::holds_alternative<T>(arg.defaultValue)) {
+                    return std::get<T>(arg.defaultValue);
+                }
+                throw TypeMismatchException("Type mismatch: argument '" + name + "' is not of type " + typeid(T).name() + ".");
+            }
+            else {
+                if (std::holds_alternative<std::monostate>(arg.parsedValue)) {
+                    if (!std::holds_alternative<std::monostate>(arg.defaultValue) && std::holds_alternative<T>(arg.defaultValue)) {
+                        return std::get<T>(arg.defaultValue);
+                    }
+                    throw MissingArgumentException("Missing required argument: " + name);
+                }
+                if (std::holds_alternative<T>(arg.parsedValue)) {
+                    return std::get<T>(arg.parsedValue);
+                }
+                throw TypeMismatchException("Type mismatch: argument '" + name + "' is not of type " + typeid(T).name() + ".");
+            }
+        }
+
+        /// @brief Check if an argument was provided on the command line.
+        /// @param name Argument name.
+        /// @return True if the argument is present, false otherwise.
+        bool has(const std::string& name) const {
+            std::string normName = normalizeName(name);
+            auto lookupIt = m_nameLookup.find(normName);
+            if (lookupIt == m_nameLookup.end()) return false;
+            const ArgData& arg = m_arguments.at(lookupIt->second);
+            return !std::holds_alternative<std::monostate>(arg.parsedValue);
+        }
+
+        /// @name Convenience getters for specific types
+        /// @{
+        int getInt(const std::string& name) const { return get<int>(name); }
+        float getFloat(const std::string& name) const { return get<float>(name); }
+        bool getBool(const std::string& name) const { return get<bool>(name); }
+        std::string getString(const std::string& name) const { return get<std::string>(name); }
+
+        std::vector<int> getInts(const std::string& name) const { return get<std::vector<int>>(name); }
+        std::vector<float> getFloats(const std::string& name) const { return get<std::vector<float>>(name); }
+        std::vector<bool> getBools(const std::string& name) const { return get<std::vector<bool>>(name); }
+        std::vector<std::string> getStrings(const std::string& name) const { return get<std::vector<std::string>>(name); }
+        /// @}
+    };
+
+    /// @class CliBuilder
+    /// @brief Provides argument definition and mutation API
+    /// This class allows adding arguments and setting validators.
+    class CliBuilder : public virtual CliData {
     public:
         /// Helper to deduce lambda argument types
         template<typename T>
@@ -363,48 +620,27 @@ namespace Argy {
         class ArgBuilder {
         public:
             /// @brief Constructs an ArgBuilder for a specific argument key.
-            /// @param parser Reference to the CliParser instance.
+            /// @param setter Reference to the CliBuilder instance.
             /// @param key The argument key (name) to build upon.
-            ArgBuilder(CliParser& parser, const std::string& key)
-                : m_parser(parser), m_key(key) {}
+            ArgBuilder(CliBuilder& setter, const std::string& key)
+                : m_setter(setter), m_key(key) {}
 
             /// @brief Adds a validation function to the argument.
             template<typename F>
             ArgBuilder& validate(F&& fn) {
                 using T = lambda_arg_t<F>;
-                m_parser.setValidator(m_key, std::forward<F>(fn));
+                m_setter.setValidator(m_key, std::forward<F>(fn));
                 return *this;
             }
 
             /// @brief Sets a default value for the argument.
-            /// @returns a reference to the CliParser for further chaining.
-            CliParser& done() { return m_parser; }
+            /// @returns a reference to the CliBuilder for further chaining.
+            CliBuilder& done() { return m_setter; }
 
         private:
-            CliParser& m_parser;
+            CliBuilder& m_setter;
             std::string m_key;
         };
-
-    public:
-        /// @brief Constructs a CliParser and sets the default help handler.
-        /// @param argc Argument count from main().
-        /// @param argv Argument vector from main().
-        /// @param useColors Whether to use ANSI color codes in help output (default: true).
-        /// The default help handler prints help and exits. You can override it with setHelpHandler().
-        CliParser(int argc, char* argv[], bool useColors = true)
-            : m_argc(argc), m_argv(argv), m_useColors(useColors) {
-            m_helpHandler = [this](std::string name) {
-                printHelp(name);
-                std::exit(0);
-            };
-        }
-
-        /// @brief Set a custom help handler invoked on --help or -h.
-        /// @param handler Function to call when help is requested. Receives the program name.
-        /// The default handler prints help and exits. Override this if you want to return or throw instead.
-        void setHelpHandler(std::function<void(std::string)> handler) {
-            m_helpHandler = std::move(handler);
-        }
 
         /// @brief set validator for an argument
         /// @param name Argument name to set the validator for.
@@ -417,7 +653,7 @@ namespace Argy {
                 throw UnknownArgumentException("Argument not found for validator: " + name);
             auto& arg = m_arguments.at(lookupIt->second);
             using T = lambda_arg_t<F>;
-            arg.validator = [fn = std::forward<F>(fn), name](const Value& v) {
+            arg.validator = [fn = std::forward<F>(fn), name](const ArgValue& v) {
                 if constexpr (std::is_invocable_v<F, T>) {
                     if (!std::holds_alternative<T>(v))
                         throw TypeMismatchException("Validator type mismatch for argument '" + name + "'");
@@ -487,13 +723,13 @@ namespace Argy {
                 }
             }
             ArgType type = deduceArgType<T>();
-            Value val = defaultValue ? Value(*defaultValue) : Value{};
+            ArgValue val = defaultValue ? ArgValue(*defaultValue) : ArgValue{};
             bool isRequired = !defaultValue.has_value();
             if constexpr (std::is_same_v<T, bool>) { isRequired = false; }
             // Use first provided normalized name as canonical key
             std::string key = cleanNames.empty() ? std::string() : cleanNames[0];
             // Store aliases (normalized names) and original classification
-            Arg arg{ cleanNames, shortNames, longNames, help, isRequired, type, val, Value{}, isPositional };
+            ArgData arg{ cleanNames, shortNames, longNames, help, isRequired, type, val, ArgValue{}, isPositional };
             m_arguments[key] = arg;
             // Register all forms in lookup map
             for (const auto& cn : cleanNames) {
@@ -564,18 +800,38 @@ namespace Argy {
         ArgBuilder addBools(const std::vector<std::string>& names, const std::string& help, std::optional<std::vector<bool>> defaultValue = std::nullopt) {
             return add<std::vector<bool>>(names, help, defaultValue);
         }
+    };
 
-        /// @brief Parse command-line arguments using stored argc/argv.
-        /// This method processes the command-line arguments, validates types, checks for required arguments,
-        /// and sets default values where appropriate. Throws on unknown or missing required arguments.
-        /// @throws UnknownArgumentException if an unknown argument is encountered.
-        /// @throws MissingArgumentException if a required argument is missing.
-        /// @throws TypeMismatchException if an argument's type does not match the expected type.
-        /// @throws UnexpectedPositionalArgumentException if a positional argument is encountered out of order.
-        /// @throws InvalidValueException if a value cannot be converted to the expected type.
-        /// @throws OutOfRangeException if a value is outside the expected range.
-        /// @note This method automatically handles the --help and -h flags by invoking the help handler.
-        void parse() {
+    using ParsedArgs = CliReader; ///< Alias for read-only parsed arguments
+
+    /// @class CliParser
+    /// @brief Main class for building and parsing command-line arguments
+    class CliParser : public CliBuilder, public CliReader {
+    public:
+        /// @brief Constructs a CliParser and sets the default help handler.
+        /// @param argc Argument count from main().
+        /// @param argv Argument vector from main().
+        /// @param useColors Whether to use ANSI color codes in help output (default: true).
+        explicit CliParser(int argc, char* argv[], bool useColors = true)
+            : m_argc(argc), m_argv(argv) {
+            m_useColors = useColors;
+            m_helpHandler = [this](std::string name) {
+                printHelp(name);
+                std::exit(0);
+            };
+        }
+
+        /// @brief Set a custom help handler invoked on --help or -h.
+        /// @param handler Function to call when help is requested. Receives the program name.
+        /// The default handler prints help and exits. Override this if you want to return or throw instead.
+        void setHelpHandler(std::function<void(std::string)> handler) {
+            m_helpHandler = std::move(handler);
+        }
+
+        /// @brief Parse the command-line arguments.
+        /// @return A CliReader instance with parsed arguments.
+        /// @throws Arg::Exception subclasses on errors.
+        ParsedArgs parse() {
             int argc = m_argc;
             char** argv = m_argv;
             // Auto-handle help flags
@@ -583,7 +839,8 @@ namespace Argy {
                 std::string arg = argv[i];
                 if (arg == "--help" || arg == "-h") {
                     m_helpHandler(argv[0]);
-                    return;
+                    // Return a copy of current state (even though no parsing was done)
+                    return CliReader(*this);
                 }
             }
 
@@ -598,13 +855,13 @@ namespace Argy {
                     std::string normKey = token.substr(2);
                     // Find by any registered name (long forms are registered with and without dashes)
                     auto it = std::find_if(m_arguments.begin(), m_arguments.end(), [&](const auto& pair) {
-                        const Arg& a = pair.second;
+                        const ArgData& a = pair.second;
                         return std::find(a.names.begin(), a.names.end(), normKey) != a.names.end() ||
                             std::find(a.names.begin(), a.names.end(), "--" + normKey) != a.names.end();
                         });
                     if (it == m_arguments.end()) throw UnknownArgumentException("Unknown argument: --" + normKey);
                     currentKey = it->first;
-                    Arg& arg = it->second;
+                    ArgData& arg = it->second;
                     if (isListType(arg.type)) {
                         arg.parsedValue = std::vector<std::string>{};
                         continue;
@@ -618,13 +875,13 @@ namespace Argy {
                     std::string normKey = token.substr(1);
                     // Find by shortName (with or without dash)
                     auto it = std::find_if(m_arguments.begin(), m_arguments.end(), [&](const auto& pair) {
-                        const Arg& a = pair.second;
+                        const ArgData& a = pair.second;
                         return std::find(a.names.begin(), a.names.end(), normKey) != a.names.end() ||
                             std::find(a.names.begin(), a.names.end(), "-" + normKey) != a.names.end();
                     });
                     if (it == m_arguments.end()) throw UnknownArgumentException("Unknown short argument: -" + normKey);
                     currentKey = it->first;
-                    Arg& arg = it->second;
+                    ArgData& arg = it->second;
                     if (isListType(arg.type)) {
                         arg.parsedValue = std::vector<std::string>{};
                         continue;
@@ -635,7 +892,7 @@ namespace Argy {
                     }
                 }
                 else if (!currentKey.empty()) {
-                    Arg& arg = m_arguments.at(currentKey);
+                    ArgData& arg = m_arguments.at(currentKey);
                     if (isListType(arg.type)) {
                         if (std::holds_alternative<std::vector<std::string>>(arg.parsedValue)) {
                             std::get<std::vector<std::string>>(arg.parsedValue).push_back(token);
@@ -651,7 +908,7 @@ namespace Argy {
                     if (positionalIndex >= m_positionalOrder.size())
                         throw UnexpectedPositionalArgumentException("Unexpected positional argument: " + token);
                     std::string name = m_positionalOrder[positionalIndex++];
-                    Arg& arg = m_arguments.at(name);
+                    ArgData& arg = m_arguments.at(name);
                     arg.parsedValue = token;
                 }
             }
@@ -740,74 +997,10 @@ namespace Argy {
                     argument.validator(argument.parsedValue);
                 }
             }
+
+            // Create a copy of the CliReader part and return it
+            return ParsedArgs(*this);
         }
-
-        /// @brief Get the parsed argument value by name.
-        /// @tparam T Expected argument type.
-        /// @param name Argument name.
-        /// @return Parsed argument value of type T.
-        /// @throws UnknownArgumentException if the argument is not found.
-        /// @throws TypeMismatchException if the argument type does not match T.
-        template<typename T>
-        T get(const std::string& name) const {
-            std::string normName = normalizeName(name);
-            auto lookupIt = m_nameLookup.find(normName);
-            if (lookupIt == m_nameLookup.end()) throw UnknownArgumentException("Argument not found: " + name);
-            const Arg& arg = m_arguments.at(lookupIt->second);
-            // Special handling for bool: always optional, default is false if not present
-            if constexpr (std::is_same_v<T, bool>) {
-                if (std::holds_alternative<bool>(arg.parsedValue)) {
-                    return std::get<bool>(arg.parsedValue);
-                }
-                return false;
-            }
-            // Handle vector types
-            if constexpr (is_vector<T>::value) {
-                if (std::holds_alternative<T>(arg.parsedValue)) {
-                    return std::get<T>(arg.parsedValue);
-                }
-                else if (!std::holds_alternative<std::monostate>(arg.defaultValue) && std::holds_alternative<T>(arg.defaultValue)) {
-                    return std::get<T>(arg.defaultValue);
-                }
-                throw TypeMismatchException("Type mismatch: argument '" + name + "' is not of type " + typeid(T).name() + ".");
-            }
-            else {
-                if (std::holds_alternative<std::monostate>(arg.parsedValue)) {
-                    if (!std::holds_alternative<std::monostate>(arg.defaultValue) && std::holds_alternative<T>(arg.defaultValue)) {
-                        return std::get<T>(arg.defaultValue);
-                    }
-                    throw MissingArgumentException("Missing required argument: " + name);
-                }
-                if (std::holds_alternative<T>(arg.parsedValue)) {
-                    return std::get<T>(arg.parsedValue);
-                }
-                throw TypeMismatchException("Type mismatch: argument '" + name + "' is not of type " + typeid(T).name() + ".");
-            }
-        }
-
-        /// @brief Check if an argument was provided on the command line.
-        /// @param name Argument name.
-        /// @return True if the argument is present, false otherwise.
-        bool has(const std::string& name) const {
-            std::string normName = normalizeName(name);
-            auto lookupIt = m_nameLookup.find(normName);
-            if (lookupIt == m_nameLookup.end()) return false;
-            const Arg& arg = m_arguments.at(lookupIt->second);
-            return !std::holds_alternative<std::monostate>(arg.parsedValue);
-        }
-
-        /// @name Convenience getters for specific types
-        /// @{
-        int getInt(const std::string& name) const { return get<int>(name); }
-        float getFloat(const std::string& name) const { return get<float>(name); }
-        bool getBool(const std::string& name) const { return get<bool>(name); }
-        std::string getString(const std::string& name) const { return get<std::string>(name); }
-
-        std::vector<int> getInts(const std::string& name) const { return get<std::vector<int>>(name); }
-        std::vector<float> getFloats(const std::string& name) const { return get<std::vector<float>>(name); }
-        std::vector<bool> getBools(const std::string& name) const { return get<std::vector<bool>>(name); }
-        std::vector<std::string> getStrings(const std::string& name) const { return get<std::vector<std::string>>(name); }
-        /// @}
 
         /// @brief Print help message to stdout.
         /// @param programName The program's executable name (usually argv[0]).
@@ -979,172 +1172,8 @@ namespace Argy {
         }
 
     private:
-        bool m_useColors = true;
-
-        /// @brief Variant to hold any supported argument value type.
-        /// This variant is used for storing argument values of different types, including lists.
-        using Value = std::variant<
-            std::monostate,      ///< No value
-            std::string,         ///< String value
-            int,                 ///< Integer value
-            float,               ///< Floating-point value
-            bool,                ///< Boolean value
-            std::vector<std::string>, ///< List of strings
-            std::vector<int>,         ///< List of integers
-            std::vector<float>,       ///< List of floats
-            std::vector<bool>>;       ///< List of booleans
-
-        /// @brief Supported argument types for validation and parsing.
-        enum class ArgType {
-            String,     ///< Single string value
-            Int,        ///< Single integer value
-            Float,      ///< Single float value
-            Bool,       ///< Single boolean value
-            StringList, ///< List of strings
-            IntList,    ///< List of integers
-            FloatList,  ///< List of floats
-            BoolList    ///< List of booleans
-        };
-
-
-        /// @struct Arg
-        /// @brief Represents one command-line argument and its metadata.
-        struct Arg {
-            std::vector<std::string> names; ///< All normalized names/aliases (no leading dashes)
-            std::vector<std::string> shortForms; ///< short forms (without dash)
-            std::vector<std::string> longForms;  ///< long forms (without dashes)
-            std::string help;       ///< Help/description string.
-            bool required{ true };  ///< True if argument must be provided by the user.
-            ArgType type{ ArgType::String }; ///< Argument type.
-            Value defaultValue;     ///< Default value if any.
-            Value parsedValue;     ///< Parsed value if any.
-            bool positional{ false }; ///< True if this is a positional argument.
-            std::function<void(const Value&)> validator; ///< Optional value validator
-        };
-
-
-        // Lookup map: maps all forms to canonical key
-        std::unordered_map<std::string, std::string> m_nameLookup; ///< Maps argument names to canonical keys.
-        std::unordered_map<std::string, Arg> m_arguments; ///< Map of all arguments.
-        std::vector<std::string> m_positionalOrder; ///< Order of positional arguments.
         std::function<void(std::string)> m_helpHandler; ///< Function to handle help requests.
         int m_argc; ///< Argument count from main().
         char** m_argv; ///< Argument vector from main().
-
-        /// @brief checks if a string starts with a given prefix
-        static bool startsWith(const std::string& str, const std::string& prefix) {
-            return str.size() >= prefix.size() && str.compare(0, prefix.size(), prefix) == 0;
-        }
-
-        /// @brief checks if a string represents a negative number
-        static bool isNegativeNumber(const std::string& str) {
-            if (!startsWith(str, "-") || str.size() <= 1) return false;
-            
-            // Check if the rest is a valid number (integer or float)
-            std::string numberPart = str.substr(1);
-            
-            // Try to parse as float (which also handles integers)
-            try {
-                auto num = std::stof(numberPart);
-                return true;
-            } catch (const std::invalid_argument&) {
-                return false;
-            } catch (const std::out_of_range&) {
-                return false;
-            }
-        }
-
-        /// @brief normalize argument name (strip leading dashes)
-        static std::string normalizeName(const std::string& name) {
-            if (startsWith(name, "--")) return name.substr(2);
-            if (startsWith(name, "-")) return name.substr(1);
-            return name;
-        }
-
-        /// @brief Converts Value variant to string for defaults and printing.
-        /// @param value The Value to convert.
-        /// @return String representation of the value.
-        static std::string toString(const Value& value) {
-            if (std::holds_alternative<std::string>(value)) return std::get<std::string>(value);
-            if (std::holds_alternative<int>(value)) return std::to_string(std::get<int>(value));
-            if (std::holds_alternative<float>(value)) return std::to_string(std::get<float>(value));
-            if (std::holds_alternative<bool>(value)) return std::get<bool>(value) ? "true" : "false";
-            if (std::holds_alternative<std::vector<std::string>>(value)) {
-                const auto& vec = std::get<std::vector<std::string>>(value);
-                std::string out = "[";
-                for (size_t i = 0; i < vec.size(); ++i) {
-                    if (i > 0) out += ", ";
-                    out += '"' + vec[i] + '"';
-                }
-                out += "]";
-                return out;
-            }
-            if (std::holds_alternative<std::vector<int>>(value)) {
-                const auto& vec = std::get<std::vector<int>>(value);
-                std::string out = "[";
-                for (size_t i = 0; i < vec.size(); ++i) {
-                    if (i > 0) out += ", ";
-                    out += std::to_string(vec[i]);
-                }
-                out += "]";
-                return out;
-            }
-            if (std::holds_alternative<std::vector<float>>(value)) {
-                const auto& vec = std::get<std::vector<float>>(value);
-                std::string out = "[";
-                for (size_t i = 0; i < vec.size(); ++i) {
-                    if (i > 0) out += ", ";
-                    out += std::to_string(vec[i]);
-                }
-                out += "]";
-                return out;
-            }
-            if (std::holds_alternative<std::vector<bool>>(value)) {
-                const auto& vec = std::get<std::vector<bool>>(value);
-                std::string out = "[";
-                for (size_t i = 0; i < vec.size(); ++i) {
-                    if (i > 0) out += ", ";
-                    out += vec[i] ? "true" : "false";
-                }
-                out += "]";
-                return out;
-            }
-            return "";
-        }
-
-        /// @brief Check if a type is a std::vector.
-        /// This is a type trait to determine if a type is a std::vector.
-        /// @tparam T Type to check.
-        template<typename T>
-        struct is_vector : std::false_type {};
-        /// @brief Specialization for std::vector types.
-        /// @tparam T Element type of the vector.
-        /// @tparam A Allocator type of the vector.
-        template<typename T, typename A>
-        struct is_vector<std::vector<T, A>> : std::true_type {};
-
-        /// @brief Check if an ArgType represents a list type.
-        /// @param type The ArgType to check.
-        /// @return True if the type is a list type, false otherwise.
-        static bool isListType(ArgType type) {
-            return type == ArgType::StringList || type == ArgType::IntList ||
-                type == ArgType::FloatList || type == ArgType::BoolList;
-        }
-
-        /// @brief Deduce ArgType enum from C++ type.
-        /// @tparam T C++ type to deduce from.
-        /// @return Corresponding ArgType value.
-        template<typename T>
-        static constexpr ArgType deduceArgType() {
-            if constexpr (std::is_same_v<T, int>) return ArgType::Int;
-            else if constexpr (std::is_same_v<T, float>) return ArgType::Float;
-            else if constexpr (std::is_same_v<T, bool>) return ArgType::Bool;
-            else if constexpr (std::is_same_v<T, std::string>) return ArgType::String;
-            else if constexpr (std::is_same_v<T, std::vector<int>>) return ArgType::IntList;
-            else if constexpr (std::is_same_v<T, std::vector<float>>) return ArgType::FloatList;
-            else if constexpr (std::is_same_v<T, std::vector<bool>>) return ArgType::BoolList;
-            else if constexpr (std::is_same_v<T, std::vector<std::string>>) return ArgType::StringList;
-            else static_assert(sizeof(T) == 0, "Unsupported argument type");
-        }
     };
 }
