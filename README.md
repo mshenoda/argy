@@ -90,13 +90,13 @@ int main(int argc, char* argv[]) {
   cli.addInt({"-n", "--count"}, "Number of items", 10);
   cli.addBool({"-v", "--verbose"}, "Enable verbose output");
     
-  // Parse and use
+  // Parse and use parsed args
   auto args = cli.parse();
-    
-  std::cout << "Input: " << args.get<std::string>("input") << "\n";
-  std::cout << "Count: " << args.get<int>("count") << "\n";
-  std::cout << "Verbose: " << (args.get<bool>("verbose") ? "true" : "false") << "\n";
-    
+  
+  std::cout << "Input: " << args.getString("input") << "\n";
+  std::cout << "Count: " << args.getInt("count") << "\n";
+  std::cout << "Verbose: " << (args.getBool("verbose") ? "true" : "false") << "\n";
+  
   return 0;
 }
 ```
@@ -115,8 +115,8 @@ cli.add<std::string>("file", "Input file");                    // Positional
 cli.add<int>({"-n", "--count"}, "Number of items", 10);        // Optional with default
 cli.add<bool>({"-v", "--verbose"}, "Enable verbose output");   // Flag
 
-// Access values (using ParsedArgs)
 auto args = cli.parse();
+
 auto file = args.get<std::string>("file");
 auto count = args.get<int>("count");
 auto verbose = args.get<bool>("verbose");
@@ -128,11 +128,11 @@ cli.addString("file", "Input file");                           // Positional
 cli.addInt({"-n", "--count"}, "Number of items", 10);          // Optional with default
 cli.addBool({"-v", "--verbose"}, "Enable verbose output");     // Flag
 
-// Access values (using ParsedArgs)
 auto args = cli.parse();
-auto file = args.get<std::string>("file");
-auto count = args.get<int>("count");
-auto verbose = args.get<bool>("verbose");
+
+auto file = args.getString("file");
+auto count = args.getInt("count");
+auto verbose = args.getBool("verbose");
 ```
 
 ### Supported Types
