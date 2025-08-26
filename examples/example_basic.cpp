@@ -46,26 +46,26 @@ int main(int argc, char* argv[]) {
 
         // === PARSED Arguments ===
         cout << "=== Basic Argy Example ===\n";
-        cout << "Input file: " << args.get<string>("filename") << "\n";
-        cout << "Output file: " << args.get<string>("output") << "\n";
-        cout << "Count: " << args.get<int>("count") << "\n";
-        cout << "Rate: " << args.get<float>("rate") << "\n";
-        cout << "Verbose: " << (args.get<bool>("verbose") ? "ON" : "OFF") << "\n";
-        cout << "Debug: " << (args.get<bool>("debug") ? "ON" : "OFF") << "\n";
-        cout << "Username: " << args.get<string>("name") << "\n";
+        cout << "Input file: " << args.getString("filename") << "\n";
+        cout << "Output file: " << args.getString("output") << "\n";
+        cout << "Count: " << args.getInt("count") << "\n";
+        cout << "Rate: " << args.getFloat("rate") << "\n";
+        cout << "Verbose: " << (args.getBool("verbose") ? "ON" : "OFF") << "\n";
+        cout << "Debug: " << (args.getBool("debug") ? "ON" : "OFF") << "\n";
+        cout << "Username: " << args.getString("name") << "\n";
 
         // Display vector values
         cout << "\nList values:\n";
         cout << "IDs: ";
-        for (int id : args.get<Ints>("ids")) {
+        for (int id : args.getInts("ids")) {
             cout << id << " ";
         }
         cout << "\nTags: ";
-        for (const string& tag : args.get<Strings>("tags")) {
+        for (const string& tag : args.getStrings("tags")) {
             cout << tag << " ";
         }
         cout << "\nScores: ";
-        for (float score : args.get<Floats>("scores")) {
+        for (float score : args.getFloats("scores")) {
             cout << score << " ";
         }
         cout << "\n";
