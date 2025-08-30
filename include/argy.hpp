@@ -633,6 +633,40 @@ namespace Argy {
                 return *this;
             }
 
+            /// synonyms for common validators
+            ArgBuilder& isFile() { return validate(IsFile()); }
+            ArgBuilder& isDirectory() { return validate(IsDirectory()); }
+            ArgBuilder& isPath() { return validate(IsPath()); }
+            ArgBuilder& isNumeric() { return validate(IsNumeric()); }
+            ArgBuilder& isAlpha() { return validate(IsAlpha()); }
+            ArgBuilder& isAlphaNumeric() { return validate(IsAlphaNumeric()); }
+            ArgBuilder& isOneOf(const std::vector<std::string>& validValues) { return validate(IsOneOf(validValues));}
+
+            /// @brief Adds a range validator for both single value and vector types.
+            /// @param min Minimum allowed value (inclusive).
+            /// @param max Maximum allowed value (inclusive).
+            template<typename T>
+            ArgBuilder& isInRange(T min, T max) {
+                if constexpr (std::is_same_v<T, int> || std::is_same_v<T, float>) {
+                    return validate(IsValueInRange<T>(min, max));
+                } else if constexpr (std::is_same_v<T, std::vector<int>> || std::is_same_v<T, std::vector<float>>) {
+                    return validate(IsVectorInRange<typename T::value_type>(min, max));
+                } else {
+                    static_assert(std::is_same_v<T, int> || std::is_same_v<T, float> ||
+                                  std::is_same_v<T, std::vector<int>> || std::is_same_v<T, std::vector<float>>,
+                                  "isInRange can only be used with int, float, or their vector types");
+                }
+            }
+
+            ArgBuilder& isMatch(const std::string& regexPattern) { return validate(IsMatch(regexPattern));}
+            ArgBuilder& isIPv4() { return validate(IsIPv4()); }
+            ArgBuilder& isIPv6() { return validate(IsIPv6()); }
+            ArgBuilder& isIPAddress() { return validate(IsIPAddress()); }
+            ArgBuilder& isMACAddress() { return validate(IsMACAddress()); }
+            ArgBuilder& isEmail() { return validate(IsEmail()); }
+            ArgBuilder& isUrl() { return validate(IsUrl()); }
+            ArgBuilder& isUUID() { return validate(IsUUID()); }
+
             /// @brief Sets a default value for the argument.
             /// @returns a reference to the CliBuilder for further chaining.
             CliBuilder& done() { return m_setter; }
@@ -641,7 +675,6 @@ namespace Argy {
             CliBuilder& m_setter;
             std::string m_key;
         };
-
         /// @brief set validator for an argument
         /// @param name Argument name to set the validator for.
         /// @param fn Validation function that takes the argument value and throws TypeMismatchException on failure.
