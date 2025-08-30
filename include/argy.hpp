@@ -828,6 +828,10 @@ namespace Argy {
             m_helpHandler = std::move(handler);
         }
 
+        void setHelpHeader(const std::string& header) { m_header = header; }
+        void setHelpFooter(const std::string& footer) { m_footer = footer; }
+        void setHelpUsage(const std::string& usage) { m_usageDetails = usage; }
+
         /// @brief Parse the command-line arguments.
         /// @return A CliReader instance with parsed arguments.
         /// @throws Arg::Exception subclasses on errors.
@@ -1014,11 +1018,19 @@ namespace Argy {
             const char* gray = m_useColors ? "\033[90m" : "";
             const char* green = m_useColors ? "\033[32m" : "";
 
-            // Usage line
+            // Header
+            if (!m_header.empty())
+                std::cout << m_header << "\n\n";
+            
+            // Usage brief
             std::cout << bold << "Usage: " << reset << programName;
             for (const auto& positional : m_positionalOrder)
                 std::cout << " " << cyan << "<" << positional << ">" << reset;
             std::cout << " " << green << "[options]" << reset << "\n\n";
+
+            // Usage details
+            if (!m_usageDetails.empty())
+                std::cout << m_usageDetails << "\n\n";
 
             // Section: Positional arguments
             if (!m_positionalOrder.empty()) {
@@ -1169,10 +1181,17 @@ namespace Argy {
             // Help flag, aligned
             size_t helpPadName = maxOptNameLen > helpFlag.size() ? maxOptNameLen - helpFlag.size() : 0;
             std::cout << "  " << green << helpFlag << reset << std::string(helpPadName, ' ') << std::string(maxTypeLen + 1, ' ') << "  Show this help message\n";
+            
+            // Footer
+            if (!m_footer.empty())
+                std::cout << "\n" << m_footer << "\n"; 
         }
 
     private:
         std::function<void(std::string)> m_helpHandler; ///< Function to handle help requests.
+        std::string m_header; ///< Optional header text for help output.
+        std::string m_footer; ///< Optional footer text for help output.
+        std::string m_usageDetails; ///< Optional additional usage details.
         int m_argc; ///< Argument count from main().
         char** m_argv; ///< Argument vector from main().
     };
