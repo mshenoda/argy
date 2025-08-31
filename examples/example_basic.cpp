@@ -10,14 +10,18 @@ using namespace Argy;
 int main(int argc, char* argv[]) {
     CliParser cli(argc, argv);
     try {
-        // === POSITIONAL ARGUMENTS ===
+        //----------------------------------------------------------------------
+        // POSITIONAL ARGUMENTS
+        //----------------------------------------------------------------------
         // Required positional argument
         cli.addString("filename", "Input file to process");
         
         // Optional positional argument with default value
         cli.addString("output", "Output file", "result.txt");
 
-        // === BASIC OPTIONAL ARGUMENTS ===
+        //----------------------------------------------------------------------
+        // BASIC OPTIONAL ARGUMENTS
+        //----------------------------------------------------------------------
         // Integer argument with default value
         cli.addInt({"-c", "--count"}, "Number of items to process", 5);
         
@@ -31,7 +35,9 @@ int main(int argc, char* argv[]) {
         // String argument with multiple aliases
         cli.addString({"-n", "--name", "--username"}, "User name", "anonymous");
 
-        // === VECTOR ARGUMENTS (LISTS) ===
+        //----------------------------------------------------------------------
+        // VECTOR ARGUMENTS (LISTS)
+        //----------------------------------------------------------------------
         // List of integers
         cli.addInts({"-i", "--ids"}, "List of item IDs", Ints{1, 2, 3});
         
@@ -41,10 +47,14 @@ int main(int argc, char* argv[]) {
         // List of floats
         cli.addFloats({"-s", "--scores"}, "Score values", Floats{0.5f, 0.7f});
 
-        // === PARSE ARGUMENTS ===
+        //----------------------------------------------------------------------
+        // PARSE ARGUMENTS
+        //----------------------------------------------------------------------
         auto args = cli.parse();
 
-        // === PARSED Arguments ===
+        //----------------------------------------------------------------------
+        // PARSED ARGUMENTS
+        //----------------------------------------------------------------------
         cout << "=== Basic Argy Example ===\n";
         cout << "Input file: " << args.getString("filename") << "\n";
         cout << "Output file: " << args.getString("output") << "\n";
@@ -70,7 +80,9 @@ int main(int argc, char* argv[]) {
         }
         cout << "\n";
 
-        // === DEMONSTRATE has() METHOD ===
+        //----------------------------------------------------------------------
+        // DEMONSTRATE has() METHOD
+        //----------------------------------------------------------------------
         cout << "\nArgument presence check:\n";
         cout << "Verbose flag provided: " << (args.has("verbose") ? "YES" : "NO") << "\n";
         cout << "Debug flag provided: " << (args.has("debug") ? "YES" : "NO") << "\n";
