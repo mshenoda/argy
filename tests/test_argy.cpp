@@ -1051,3 +1051,91 @@ TEST_CASE("Type aliases: Strings usage") {
     CHECK(words[1] == "world");
     CHECK(words[2] == "test");
 }
+
+TEST_CASE("POSIX style -- delimiter for positional arguments") {
+    SUBCASE("Basic POSIX -- usage") {
+        const char* argv[] = {"prog", "--verbose", "--", "-f", "--help", "file.txt"};
+        int argc = 6;
+        CliParser parser(argc, const_cast<char**>(argv));
+        parser.addBool({"-v", "--verbose"}, "Verbose output", false);
+        parser.addString("input", "Input file");
+        parser.addString("option", "Some option");
+        parser.addString("filename", "Another filename");
+        
+        parser.parse();
+        
+        CHECK(parser.getBool("verbose") == true);
+        CHECK(parser.getString("input") == "-f");
+        CHECK(parser.getString("option") == "--help");
+        CHECK(parser.getString("filename") == "file.txt");
+    }
+    
+    SUBCASE("POSIX -- with no arguments after") {
+        const char* argv[] = {"prog", "--count", "5", "--"};
+        int argc = 4;
+        CliParser parser(argc, const_cast<char**>(argv));
+        parser.addInt({"-c", "--count"}, "Count value", 1);
+        
+        parser.parse();
+        
+        CHECK(parser.getInt("count") == 5);
+    }
+    
+    SUBCASE("POSIX -- prevents flag parsing") {
+        const char* argv[] = {"prog", "--", "--invalid-flag", "-x"};
+        int argc = 4;
+        CliParser parser(argc, const_cast<char**>(argv));
+        parser.addString("arg1", "First argument");
+        parser.addString("arg2", "Second argument");
+        
+        parser.parse();
+        
+        CHECK(parser.getString("arg1") == "--invalid-flag");
+        CHECK(parser.getString("arg2") == "-x");
+    }
+    
+    SUBCASE("POSIX -- with mixed valid flags before") {
+        const char* argv[] = {"prog", "-v", "--output", "out.txt", "--", "-v", "--output"};
+        int argc = 7;
+        CliParser parser(argc, const_cast<char**>(argv));
+        parser.addBool({"-v", "--verbose"}, "Verbose output", false);
+        parser.addString({"-o", "--output"}, "Output file", "default.txt");
+        parser.addString("first", "First positional");
+        parser.addString("second", "Second positional");
+        
+        parser.parse();
+        
+        CHECK(parser.getBool("verbose") == true);
+        CHECK(parser.getString("output") == "out.txt");
+        CHECK(parser.getString("first") == "-v");
+        CHECK(parser.getString("second") == "--output");
+    }
+    
+    SUBCASE("POSIX -- with negative numbers") {
+        const char* argv[] = {"prog", "--", "-42", "-3.14"};
+        int argc = 4;
+        CliParser parser(argc, const_cast<char**>(argv));
+        parser.addInt("num1", "First number");
+        parser.addFloat("num2", "Second number");
+        
+        parser.parse();
+        
+        CHECK(parser.getInt("num1") == -42);
+        CHECK(parser.getFloat("num2") == doctest::Approx(-3.14f));
+    }
+    
+    SUBCASE("No POSIX -- should parse flags normally") {
+        const char* argv[] = {"prog", "--verbose", "-c", "10", "file.txt"};
+        int argc = 5;
+        CliParser parser(argc, const_cast<char**>(argv));
+        parser.addBool({"-v", "--verbose"}, "Verbose output", false);
+        parser.addInt({"-c", "--count"}, "Count value", 1);
+        parser.addString("input", "Input file");
+        
+        parser.parse();
+        
+        CHECK(parser.getBool("verbose") == true);
+        CHECK(parser.getInt("count") == 10);
+        CHECK(parser.getString("input") == "file.txt");
+    }
+}

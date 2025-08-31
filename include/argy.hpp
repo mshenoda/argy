@@ -871,24 +871,30 @@ namespace Argy {
         ParsedArgs parse() {
             int argc = m_argc;
             char** argv = m_argv;
-            // Auto-handle help flags
-            for (int i = 1; i < argc; ++i) {
-                std::string arg = argv[i];
-                if (arg == "--help" || arg == "-h") {
-                    m_helpHandler(argv[0]);
-                    // Return a copy of current state (even though no parsing was done)
-                    return CliReader(*this);
-                }
-            }
 
             std::string currentKey;
             size_t positionalIndex = 0;
+            bool positionalOnlyMode = false; // Flag: treat all subsequent args as positional after --
 
             // Parse loop
             for (int i = 1; i < argc; ++i) {
                 std::string token = argv[i];
                 std::string key;
-                if (startsWith(token, "--")) {
+                
+                // Check for help flags (only if not in positionalOnlyMode)
+                if (!positionalOnlyMode && (token == "--help" || token == "-h")) {
+                    m_helpHandler(argv[0]);
+                    // Return a copy of current state (even though no parsing was done)
+                    return CliReader(*this);
+                }
+                
+                // Check for POSIX -- delimiter for positional-only mode
+                if (token == "--" && !positionalOnlyMode) {
+                    positionalOnlyMode = true;
+                    continue; // Skip the -- token itself
+                }
+                
+                if (!positionalOnlyMode && startsWith(token, "--")) {
                     std::string normKey = token.substr(2);
                     // Find by any registered name (long forms are registered with and without dashes)
                     auto it = std::find_if(m_arguments.begin(), m_arguments.end(), [&](const auto& pair) {
@@ -908,7 +914,7 @@ namespace Argy {
                         currentKey.clear();
                     }
                 }
-                else if (startsWith(token, "-") && token.size() > 1 && !isNegativeNumber(token)) {
+                else if (!positionalOnlyMode && startsWith(token, "-") && token.size() > 1 && !isNegativeNumber(token)) {
                     std::string normKey = token.substr(1);
                     // Find by shortName (with or without dash)
                     auto it = std::find_if(m_arguments.begin(), m_arguments.end(), [&](const auto& pair) {
@@ -928,25 +934,30 @@ namespace Argy {
                         currentKey.clear();
                     }
                 }
-                else if (!currentKey.empty()) {
-                    ArgData& arg = m_arguments.at(currentKey);
-                    if (isListType(arg.type)) {
-                        if (std::holds_alternative<std::vector<std::string>>(arg.parsedValue)) {
-                            std::get<std::vector<std::string>>(arg.parsedValue).push_back(token);
+                else {
+                    // Handle values for current flag or positional arguments
+                    if (!currentKey.empty() && !positionalOnlyMode) {
+                        ArgData& arg = m_arguments.at(currentKey);
+                        if (isListType(arg.type)) {
+                            if (std::holds_alternative<std::vector<std::string>>(arg.parsedValue)) {
+                                std::get<std::vector<std::string>>(arg.parsedValue).push_back(token);
+                            }
+                        }
+                        else {
+                            arg.parsedValue = token;
+                            currentKey.clear();
                         }
                     }
                     else {
-                        arg.parsedValue = token;
-                        currentKey.clear();
+                        // Positional argument (either in normal mode or positionalOnlyMode after --)
+                        if (positionalOnlyMode || currentKey.empty()) {
+                            if (positionalIndex >= m_positionalOrder.size())
+                                throw UnexpectedPositionalArgumentException("Unexpected positional argument: " + token);
+                            std::string name = m_positionalOrder[positionalIndex++];
+                            ArgData& arg = m_arguments.at(name);
+                            arg.parsedValue = token;
+                        }
                     }
-                }
-                else {
-                    // Positional argument
-                    if (positionalIndex >= m_positionalOrder.size())
-                        throw UnexpectedPositionalArgumentException("Unexpected positional argument: " + token);
-                    std::string name = m_positionalOrder[positionalIndex++];
-                    ArgData& arg = m_arguments.at(name);
-                    arg.parsedValue = token;
                 }
             }
 
