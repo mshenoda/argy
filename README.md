@@ -48,9 +48,10 @@ Perfect for building robust, maintainable command-line tools in modern C++.
 - 🔄 **Flexible Naming**: Support for multiple aliases per argument (e.g., `-v`, `--verbose`, `--debug-mode`)
 - 🔒 **Type-safe** access to parsed values
 - 📋 **List Support**: Native support for vector arguments with validation
-- 🛡️ **Built-in Validation**: Rich set of validators for common patterns (emails, URLs, file paths, ranges, etc.)
+- 🛡️ **Built-in Validation**: Rich set of validators for common patterns (emails, URLs, file paths, ranges, etc.) with fluent API
 - **🎨 Beautiful Help**: Auto-generated colorized help messages that look professional out of the box
 - **🎪 Python-like Experience**: Familiar API if you've used Python's argparse
+- **⚡ POSIX Support**: Support for `--` separator to treat remaining arguments as positional
 
 ## Demo: 
 🌐 **[Try Argy in your browser on Compiler Explorer!](https://godbolt.org/z/P8xj3xfYW)**
@@ -147,58 +148,54 @@ auto verbose = args.getBool("verbose");
 | Float List | `add<Argy::Floats>()` | `addFloats()` | `{1.0f, 2.0f}` |
 | Boolean List | `add<Argy::Bools>()` | `addBools()` | `{true, false}` |
 
-## 🛡️ Built-in Validation
+## 🛡️ Built-in Validation (Fluent API)
 
-Argy provides rich validation capabilities for robust argument parsing:
+Argy provides rich validation capabilities with a fluent API for robust argument parsing:
 
 ### Basic Validators
 ```cpp
 // Range validation
-cli.add<int>({"-p", "--port"}, "Port number", 8080)
-   .validate(Argy::IsValueInRange(1024, 65535));
+cli.addInt({"-p", "--port"}, "Port number", 8080).isInRange(1024, 65535);
 
 // Choice validation  
-cli.add<std::string>({"-m", "--mode"}, "Processing mode", "normal")
-   .validate(Argy::IsOneOf({"normal", "fast", "debug"}));
+cli.addString({"-m", "--mode"}, "Processing mode", "normal").isOneOf({"normal", "fast", "debug"});
 
 // Regex validation
-cli.add<std::string>({"-t", "--token"}, "API token")
-   .validate(Argy::IsMatch(R"([A-Za-z0-9]{32})"));
+cli.add<std::string>({"-t", "--token"}, "API token").isMatch(R"([A-Za-z0-9]{32})");
 ```
 
 ### String Pattern Validators
 ```cpp
 // Common patterns
-cli.addString({"-e", "--email"}, "Email address").validate(Argy::IsEmail());
-cli.addString({"-u", "--url"}, "API endpoint").validate(Argy::IsUrl());
-cli.addString({"--ip"}, "Server IP").validate(Argy::IsIPAddress());
-cli.addString({"--mac"}, "MAC address").validate(Argy::IsMACAddress());
-cli.addString({"--uuid"}, "UUID").validate(Argy::IsUUID());
+cli.addString({"-e", "--email"}, "Email address").isEmail();
+cli.addString({"-u", "--url"}, "API endpoint").isUrl();
+cli.addString({"--ip"}, "Server IP").isIPAddress();
+cli.addString({"--mac"}, "MAC address").isMACAddress();
+cli.addString({"--uuid"}, "UUID").isUUID();
 
 // Character type validation
-cli.addString({"--alpha"}, "Letters only").validate(Argy::IsAlpha());
-cli.addString({"--numeric"}, "Numbers only").validate(Argy::IsNumeric());
-cli.addString({"--alphanum"}, "Alphanumeric").validate(Argy::IsAlphaNumeric());
+cli.addString({"--alpha"}, "Alphabet letters only").isAlpha();
+cli.addString({"--numeric"}, "Numbers only").isNumeric();
+cli.addString({"--alphanum"}, "Alphanumeric").isAlphaNumeric();
 ```
 
 ### File System Validators
 ```cpp
-cli.addString({"-f", "--file"}, "Input file").validate(Argy::IsFile());
-cli.addString({"-d", "--dir"}, "Output directory").validate(Argy::IsDirectory());
-cli.addString({"-p", "--path"}, "File or directory").validate(Argy::IsPath());
+cli.addString({"-f", "--file"}, "Input file").isFile();
+cli.addString({"-d", "--dir"}, "Output directory").isDirectory();
+cli.addString({"-p", "--path"}, "File or directory").isPath();
 ```
 
 ### Vector Validation
 ```cpp
 // Validate all elements in a vector
-cli.add<Argy::Ints>({"-i", "--ids"}, "User IDs")
-   .validate(Argy::IsVectorInRange(1, 1000000));
+cli.addInts({"-i", "--ids"}, "User IDs").isInRange(1, 1000000);
 ```
 
 ### Custom Validators
 ```cpp
 // Custom validation lambda function
-cli.add<float>({"-r", "--ratio"}, "Ratio value")
+cli.addFloats({"-r", "--ratio"}, "Ratio value")
    .validate([](const std::string& name, float value) {
        if (value < 0.0f || value > 1.0f) {
            throw Argy::InvalidValueException("Ratio must be between 0.0 and 1.0");
@@ -219,24 +216,19 @@ int main(int argc, char* argv[]) {
     
     try {
         // Positional arguments (required)
-        cli.addString("input", "Input image path")
-           .validate(Argy::IsFile());
+        cli.addString("input", "Input image path").isFile();
         
         // Optional arguments with defaults
-        cli.addString({"-o", "--output"}, "Output directory", "./results/")
-           .validate(Argy::IsDirectory());
-        cli.addInt({"-q", "--quality"}, "JPEG quality (1-100)", 85)
-           .validate(Argy::IsValueInRange(1, 100));
-        cli.addString({"-f", "--format"}, "Output format", "jpg")
-           .validate(Argy::IsOneOf({"jpg", "png", "webp", "tiff"}));
+        cli.addString({"-o", "--output"}, "Output directory", "./results/").isDirectory();
+        cli.addInt({"-q", "--quality"}, "JPEG quality (1-100)", 85).isInRange(1, 100);
+        cli.addString({"-f", "--format"}, "Output format", "jpg").isOneOf({"jpg", "png", "webp", "tiff"});
         
         // Flags (boolean)
         cli.addBool({"-v", "--verbose"}, "Enable verbose output");
         cli.addBool({"-p", "--preview"}, "Generate preview images");
         
         // Vector arguments
-        cli.addInts({"-s", "--sizes"}, "Output sizes", Argy::Ints{800, 1200})
-           .validate(Argy::IsVectorInRange(100, 4000));
+        cli.addInts({"-s", "--sizes"}, "Output sizes", Argy::Ints{800, 1200}).isInRange(100, 10000);
         cli.addStrings({"-t", "--tags"}, "Image tags", Argy::Strings{"processed"});
         
         // Parse command line
@@ -278,6 +270,10 @@ int main(int argc, char* argv[]) {
 # With verbose and multiple sizes
 ./image_tool input.jpg -v --sizes 400 800 1600 --tags "landscape" "hdr"
 
+# Using POSIX -- separator for files with special names
+./image_tool --verbose --quality 90 -- --weird-filename.jpg
+./image_tool -o ./output -- input1.jpg input2.jpg
+
 # Help
 ./image_tool --help
 ```
@@ -313,6 +309,21 @@ Arguments can have multiple names for better UX:
 cli.add<bool>({"-v", "--verbose", "--debug-mode"}, "Enable detailed output");
 // Works with: -v, --verbose, or --debug-mode
 ```
+
+### POSIX Style `--` Separator
+Argy supports the POSIX convention of using `--` to separate options from positional arguments:
+```cpp
+cli.addString("input", "Input file");
+cli.addBool({"-v", "--verbose"}, "Enable verbose output");
+```
+```
+Usage examples:
+  ./app file.txt --verbose          # Normal usage
+  ./app --verbose -- --weird-file   # File starting with --
+  ./app -- -file.txt                # File starting with -
+```
+
+This is especially useful when dealing with files that have names starting with dashes or when you want to ensure arguments are treated as positional regardless of their content.
 
 ### Argument Presence Checking
 ```cpp
@@ -379,6 +390,7 @@ Argy provides specific exception types for better error handling:
 3. **Use descriptive help text** for better UX
 4. **Handle exceptions gracefully** with proper error messages
 5. **Test with `--help`** to ensure good documentation
+6. **Use `--` separator** when dealing with positional arguments with files that might start with dashes
 
 ## 🤝 Contributing
 
