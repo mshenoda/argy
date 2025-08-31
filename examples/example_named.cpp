@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
     // HELP CUSTOMIZATION (Header, Usage, Footer)
     //--------------------------------------------------------------------------
     cli.setHelpHeader("Argy Named API Example - Comprehensive Argument Showcase");
-    cli.setHelpUsage("it supports positional in the beginning followed by options \n"
+    cli.setHelpDescription("It supports positional in the beginning followed by options \n"
                      "or POXIX style -- to treat all subsequent args as positional.");
     cli.setHelpFooter("For more information, visit: https://github.com/mshenoda/argy");
     

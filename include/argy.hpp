@@ -863,7 +863,7 @@ namespace Argy {
 
         void setHelpHeader(const std::string& header) { m_header = header; }
         void setHelpFooter(const std::string& footer) { m_footer = footer; }
-        void setHelpUsage(const std::string& usage) { m_usageDetails = usage; }
+        void setHelpDescription(const std::string& description) { m_description = description; }
 
         /// @brief Parse the command-line arguments.
         /// @return A CliReader instance with parsed arguments.
@@ -1073,8 +1073,8 @@ namespace Argy {
             std::cout << " " << green << "[options]" << reset << "\n\n";
 
             // Usage details
-            if (!m_usageDetails.empty())
-                std::cout << m_usageDetails << "\n\n";
+            if (!m_description.empty())
+                std::cout << m_description << "\n\n";
 
             // Section: Positional arguments
             if (!m_positionalOrder.empty()) {
@@ -1235,7 +1235,7 @@ namespace Argy {
         std::function<void(std::string)> m_helpHandler; ///< Function to handle help requests.
         std::string m_header; ///< Optional header text for help output.
         std::string m_footer; ///< Optional footer text for help output.
-        std::string m_usageDetails; ///< Optional additional usage details.
+        std::string m_description; ///< Optional additional description for help output.
         int m_argc; ///< Argument count from main().
         char** m_argv; ///< Argument vector from main().
     };
