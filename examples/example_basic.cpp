@@ -83,9 +83,11 @@ int main(int argc, char* argv[]) {
         //----------------------------------------------------------------------
         // DEMONSTRATE has() METHOD
         //----------------------------------------------------------------------
+        // has() is true once an argument holds a value, which includes defaults
+        // (so it is true for every argument defined above); unknown names return false.
         cout << "\nArgument presence check:\n";
-        cout << "Verbose flag provided: " << (args.has("verbose") ? "YES" : "NO") << "\n";
-        cout << "Debug flag provided: " << (args.has("debug") ? "YES" : "NO") << "\n";
+        cout << "Has 'verbose': " << (args.has("verbose") ? "YES" : "NO") << "\n";
+        cout << "Has 'unknown': " << (args.has("unknown") ? "YES" : "NO") << "\n";
 
     } catch (const std::exception& ex) {
         cerr << "Error: " << ex.what() << endl;

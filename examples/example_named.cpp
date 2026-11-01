@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
     //--------------------------------------------------------------------------
     cli.setHelpHeader("Argy Named API Example - Comprehensive Argument Showcase");
     cli.setHelpDescription("It supports positional in the beginning followed by options \n"
-                     "or POXIX style -- to treat all subsequent args as positional.");
+                     "or POSIX style -- to treat all subsequent args as positional.");
     cli.setHelpFooter("For more information, visit: https://github.com/mshenoda/argy");
     
     try {
@@ -49,8 +49,8 @@ int main(int argc, char* argv[]) {
       // Directory validation
       cli.addString({"-d", "--directory"}, "Working directory", ".").isDirectory();  
 
-      // Path validation 
-      cli.addString({"-pth", "--path"}, "Path to file or directory", "file.txt").isPath();
+      // Path validation (defaults are validated too, so the default must exist)
+      cli.addString({"-pth", "--path"}, "Path to file or directory", ".").isPath();
 
       //------------------------------------------------------------------------
       // NETWORK & COMMUNICATION (Email, URLs, IP addresses)
@@ -66,8 +66,8 @@ int main(int argc, char* argv[]) {
       cli.addString({"--ipv4"}, "IPv4 address", "192.168.1.1").isIPv4(); 
       cli.addString({"--ipv6"}, "IPv6 address", "2001:0db8:85a3:0000:0000:8a2e:0370:7334").isIPv6();
 
-      // MAC address validation
-      cli.addString({"--mac"}, "MAC address (optional)", "").isMACAddress();
+      // MAC address validation (defaults are validated too, so it can't be empty)
+      cli.addString({"--mac"}, "MAC address", "00:1A:2B:3C:4D:5E").isMACAddress();
 
       //------------------------------------------------------------------------
       // STRING VALIDATION (Pattern and format validation)
@@ -87,14 +87,20 @@ int main(int argc, char* argv[]) {
       //------------------------------------------------------------------------
       // VECTOR TYPES (Collections with validation)
       //------------------------------------------------------------------------
-      // Integer vector with range validation
-      cli.addInts({"-i", "--ids"}, "Vector of IDs (1-999)", Ints{1, 2, 3}).isInRange(1, 999);
+      // Integer vector with range validation (every element must be in range)
+      cli.addInts({"-i", "--ids"}, "Vector of IDs (1-999)", Ints{1, 2, 3})
+         .validate(IsVectorInRange(1, 999));
 
-      // Float vector
-      cli.addFloats({"-s", "--scores"}, "Performance scores", Floats{0.8f, 0.9f, 0.75f}).isInRange(0.0f, 1.0f);
+      // Float vector with range validation
+      cli.addFloats({"-s", "--scores"}, "Performance scores", Floats{0.8f, 0.9f, 0.75f})
+         .validate(IsVectorInRange(0.0f, 1.0f));
 
-      // String vector
-      cli.addStrings({"-p", "--plugins"}, "Plugin names", Strings{"auth", "logging"}).isAlpha();
+      // String vector with custom validation (built-in string validators take a single string,
+      // so apply them to each element)
+      cli.addStrings({"-p", "--plugins"}, "Plugin names", Strings{"auth", "logging"})
+         .validate([](const string& name, const Strings& values) {
+            for (const auto& value : values) IsAlpha()(name, value);
+         });
 
       // Boolean vector
       cli.addBools({"-f", "--features"}, "Feature flags", Bools{true, false, true});
@@ -129,9 +135,7 @@ int main(int argc, char* argv[]) {
       cout << "Server IP: " << args.getString("ip") << "\n";
       cout << "IPv4: " << args.getString("ipv4") << "\n";
       cout << "IPv6: " << args.getString("ipv6") << "\n";
-      if (args.has("mac") && !args.getString("mac").empty()) {
-         cout << "MAC Address: " << args.getString("mac") << "\n";
-      }
+      cout << "MAC Address: " << args.getString("mac") << "\n";
       
       // String Validation
       cout << "\n--- STRING VALIDATION ---\n";
@@ -153,8 +157,9 @@ int main(int argc, char* argv[]) {
       for (auto feature : args.getBools("features")) cout << (feature ? "ON" : "OFF") << " ";
       cout << "\n";
 
-    } catch (const Argy::Exception& ex) {
+    } catch (const std::exception& ex) {
         cerr << "Error: " << ex.what() << endl;
+        cerr << "Try running with --help for usage information." << endl;
         return 1;
     }
 

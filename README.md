@@ -152,10 +152,15 @@ auto verbose = args.getBool("verbose");
 
 Argy provides rich validation capabilities with a fluent API for robust argument parsing:
 
+> **Good to know:**
+> - Validators run on the final value, **including default values**, so a default must pass its own validator (e.g. an empty default fails `isEmail()`).
+> - Each argument holds a **single** validator. Calling `validate()` or a built-in helper such as `isEmail()` again on the same argument replaces the previous one.
+
 ### Basic Validators
 ```cpp
-// Range validation
+// Range validation (int and float)
 cli.addInt({"-p", "--port"}, "Port number", 8080).isInRange(1024, 65535);
+cli.addFloat({"-r", "--ratio"}, "Ratio", 0.5f).isInRange(0.0f, 1.0f);
 
 // Choice validation  
 cli.addString({"-m", "--mode"}, "Processing mode", "normal").isOneOf({"normal", "fast", "debug"});
@@ -169,7 +174,9 @@ cli.add<std::string>({"-t", "--token"}, "API token").isMatch(R"([A-Za-z0-9]{32})
 // Common patterns
 cli.addString({"-e", "--email"}, "Email address").isEmail();
 cli.addString({"-u", "--url"}, "API endpoint").isUrl();
-cli.addString({"--ip"}, "Server IP").isIPAddress();
+cli.addString({"--ip"}, "Server IP (IPv4 or IPv6)").isIPAddress();
+cli.addString({"--ipv4"}, "IPv4 address").isIPv4();
+cli.addString({"--ipv6"}, "IPv6 address (full 8-group form)").isIPv6();
 cli.addString({"--mac"}, "MAC address").isMACAddress();
 cli.addString({"--uuid"}, "UUID").isUUID();
 
@@ -187,18 +194,27 @@ cli.addString({"-p", "--path"}, "File or directory").isPath();
 ```
 
 ### Vector Validation
+The built-in helpers (`isInRange()`, `isAlpha()`, and so on) target single values. For list arguments, pass a list-aware validator to `validate()`:
 ```cpp
 // Validate all elements in a vector
-cli.addInts({"-i", "--ids"}, "User IDs").isInRange(1, 1000000);
+cli.addInts({"-i", "--ids"}, "User IDs", Argy::Ints{1}).validate(Argy::IsVectorInRange(1, 1000000));
+cli.addFloats({"-s", "--scores"}, "Scores", Argy::Floats{0.5f}).validate(Argy::IsVectorInRange(0.0f, 1.0f));
+
+// Apply a string validator to every element
+cli.addStrings({"-p", "--plugins"}, "Plugin names", Argy::Strings{"auth"})
+   .validate([](const std::string& name, const Argy::Strings& values) {
+       for (const auto& v : values) Argy::IsAlpha()(name, v);
+   });
 ```
 
 ### Custom Validators
+For rules the built-in helpers don't cover, `validate()` accepts a callable taking `(name, value)` or just `(value)`. The value parameter type must match the argument's type, and the callable must be passed as a temporary (inline lambda), not a named variable.
 ```cpp
 // Custom validation lambda function
-cli.addFloats({"-r", "--ratio"}, "Ratio value")
-   .validate([](const std::string& name, float value) {
-       if (value < 0.0f || value > 1.0f) {
-           throw Argy::InvalidValueException("Ratio must be between 0.0 and 1.0");
+cli.addInt({"-w", "--workers"}, "Worker count (power of two)", 4)
+   .validate([](const std::string& name, int value) {
+       if (value <= 0 || (value & (value - 1)) != 0) {
+           throw Argy::InvalidValueException("Argument '" + name + "' must be a power of two");
        }
    });
 ```
@@ -219,7 +235,7 @@ int main(int argc, char* argv[]) {
         cli.addString("input", "Input image path").isFile();
         
         // Optional arguments with defaults
-        cli.addString({"-o", "--output"}, "Output directory", "./results/").isDirectory();
+        cli.addString({"-o", "--output"}, "Output directory", "./results/");
         cli.addInt({"-q", "--quality"}, "JPEG quality (1-100)", 85).isInRange(1, 100);
         cli.addString({"-f", "--format"}, "Output format", "jpg").isOneOf({"jpg", "png", "webp", "tiff"});
         
@@ -228,23 +244,24 @@ int main(int argc, char* argv[]) {
         cli.addBool({"-p", "--preview"}, "Generate preview images");
         
         // Vector arguments
-        cli.addInts({"-s", "--sizes"}, "Output sizes", Argy::Ints{800, 1200}).isInRange(100, 10000);
+        cli.addInts({"-s", "--sizes"}, "Output sizes", Argy::Ints{800, 1200})
+           .validate(Argy::IsVectorInRange(100, 10000));
         cli.addStrings({"-t", "--tags"}, "Image tags", Argy::Strings{"processed"});
         
         // Parse command line
-        cli.parse();
+        auto args = cli.parse();
         
         // Use parsed values
-        std::cout << "Processing: " << cli.getString("input") << "\n";
-        std::cout << "Output: " << cli.getString("output") << "\n";
-        std::cout << "Quality: " << cli.getInt("quality") << "%\n";
-        std::cout << "Format: " << cli.getString("format") << "\n";
+        std::cout << "Processing: " << args.getString("input") << "\n";
+        std::cout << "Output: " << args.getString("output") << "\n";
+        std::cout << "Quality: " << args.getInt("quality") << "%\n";
+        std::cout << "Format: " << args.getString("format") << "\n";
         
-        if (cli.getBool("verbose")) {
+        if (args.getBool("verbose")) {
             std::cout << "Verbose mode enabled\n";
         }
         
-        auto sizes = cli.getInts("sizes");
+        auto sizes = args.getInts("sizes");
         std::cout << "Output sizes: ";
         for (auto size : sizes) std::cout << size << "px ";
         std::cout << "\n";
@@ -272,7 +289,7 @@ int main(int argc, char* argv[]) {
 
 # Using POSIX -- separator for files with special names
 ./image_tool --verbose --quality 90 -- --weird-filename.jpg
-./image_tool -o ./output -- input1.jpg input2.jpg
+./image_tool -o ./output -- -input.jpg
 
 # Help
 ./image_tool --help
@@ -286,20 +303,20 @@ Argy automatically generates beautiful, colorized help messages. When you run yo
 Usage: ./image_tool <input> [options]
 
 Positional:
-  input     Input image path  (required)
+  input  Input image path
 
 Options:
-  -o, --output   <string>   Output directory          (default: ./results)
-  -q, --quality  <int>      JPEG quality (1-100)      (default: 85)
-  -f, --format   <string>   Output format             (default: jpg)
-  -v, --verbose             Enable verbose output     (default: false)
-  -p, --preview             Generate preview images   (default: false)
-  -s, --sizes    <int[]>    Output sizes              (default: [800, 1200])
-  -t, --tags     <string[]> Image tags                (default: ["processed"])
+  -o, --output  <string>    Output directory (default: ./results/)
+  -q, --quality <int>       JPEG quality (1-100) (default: 85)
+  -f, --format  <string>    Output format (default: jpg)
+  -v, --verbose             Enable verbose output (default: false)
+  -p, --preview             Generate preview images (default: false)
+  -s, --sizes   <int[]>     Output sizes (default: [800, 1200])
+  -t, --tags    <string[]>  Image tags (default: ["processed"])
   -h, --help                Show this help message
 ```
 
-> **Note:** The actual output in your terminal will be beautifully colorized with proper highlighting!
+> **Note:** The actual output in your terminal will be colorized. Options are listed in internal (unspecified) order, and arguments without a default are marked `(required)`. Pass `useColors = false` as the third `CliParser` constructor argument to disable ANSI colors.
 
 ## 🔧 Advanced Features
 
@@ -325,21 +342,44 @@ Usage examples:
 
 This is especially useful when dealing with files that have names starting with dashes or when you want to ensure arguments are treated as positional regardless of their content.
 
-### Argument Presence Checking
+### List Arguments
+A list option consumes every following value until the next option, so place positional arguments **before** list options, or after a `--` separator:
+```bash
+./app input.txt --ids 1 2 3 --tags a b     # OK
+./app --ids 1 2 3 -- input.txt             # OK
+./app --ids 1 2 3 input.txt                # input.txt is treated as an ids value
+```
+Negative numbers (e.g. `--offset -5`) are accepted as values.
+
+### Argument Lookup
 ```cpp
 auto args = cli.parse();
-if (args.has("verbose")) {
-  std::cout << "Verbose mode was explicitly enabled\n";
+if (args.has("output")) {
+  // true once the argument holds a value: either given on the command line OR its default
+}
+if (args.getBool("verbose")) {
+  // use getBool() to test whether a flag was turned on
 }
 ```
+`has()` returns `false` for unknown names. It does not distinguish an explicit value from a default.
+
+### Help Customization
+```cpp
+cli.setHelpHeader("My Tool v1.0");                  // printed before the usage line
+cli.setHelpDescription("Longer description text");  // printed after the usage line
+cli.setHelpFooter("See https://example.com/docs");  // printed after the options
+```
+`-h` and `--help` are built in and reserved: defining an argument with either name throws `ReservedArgumentException`.
 
 ### Custom Help Handler
+By default, `--help` prints the help message and exits the process with code 0. A custom handler replaces that behavior:
 ```cpp
 cli.setHelpHandler([](const std::string& programName) {
     std::cout << "Custom help for " << programName << "\n";
     // custom handler logic
 });
 ```
+If your handler returns, `parse()` returns immediately without parsing the remaining arguments or checking required ones. Throw from the handler if you want to stop the program flow instead.
 
 ### Error Handling
 ```cpp
@@ -376,12 +416,22 @@ using Argy::Bools;    // std::vector<bool>
 - **Boolean flags** default to `false` and become `true` when specified
 
 ### Exception Types
-Argy provides specific exception types for better error handling:
+All exceptions derive from `Argy::Exception` (which derives from `std::exception`).
+
+**Definition errors** (`DefineException`), thrown while adding arguments:
+- `DuplicateArgumentException` - Name or alias already in use
+- `ReservedArgumentException` - Attempt to redefine `-h` / `--help`
+- `InvalidArgumentException` - Invalid argument definition (e.g. an empty name after `-` or `--`)
+
+**Parse errors** (`ParseException`), thrown by `parse()` and the getters:
 - `MissingArgumentException` - Required argument not provided
-- `InvalidValueException` - Value cannot be converted or fails validation
 - `UnknownArgumentException` - Unrecognized argument
-- `TypeMismatchException` - Type conversion error
-- `OutOfRangeException` - Value outside expected range
+- `UnexpectedPositionalArgumentException` - More positional values than defined
+- `TypeMismatchException` - Getter or validator type doesn't match the argument's type
+
+**Validation errors** (`ValidateException`):
+- `InvalidValueException` - Value cannot be converted or fails validation
+- `OutOfRangeException` - Value outside expected range or too large for its type
 
 ## 🎯 Best Practices
 
